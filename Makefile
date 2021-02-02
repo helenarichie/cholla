@@ -28,7 +28,7 @@ DFLAGS += -DPRECISION=2
 #Set output preferences
 DFLAGS += -DOUTPUT
 #DFLAGS += -DBINARY
-#DFLAGS += -DHDF5
+DFLAGS += -DHDF5
 #DFLAGS += -DSLICES
 #DFLAGS += -DPROJECTION
 #DFLAGS += -DROTATED_PROJECTION
@@ -69,7 +69,7 @@ DFLAGS += -DVL
 #DFLAGS += -DDYNAMIC_GPU_ALLOC
 
 # Set the cooling function
-#DFLAGS += -DCOOLING_GPU 
+#DFLAGS += -DCOOLING_GPU
 #DFLAGS += -DCLOUDY_COOL
 
 # Use Tiled Iitial Conditions for Scaling Tets
@@ -106,12 +106,12 @@ DFLAGS += -DVL
 
 # Cosmological simulation
 #DFLAGS += -DCOSMOLOGY
- 
+
 # Use Grackle for cooling in cosmological simulations
 #DFLAGS += -DCOOLING_GRACKLE
 
-CC ?= cc
-CXX ?= CC
+CC ?= mpicc
+CXX ?= mpicxx
 CFLAGS += -g -Ofast
 CXXFLAGS += -g -Ofast -std=c++14
 CFLAGS += $(DFLAGS) -Isrc
@@ -129,10 +129,10 @@ ifeq ($(findstring -DCUFFT,$(DFLAGS)),-DCUFFT)
 endif
 
 ifeq ($(findstring -DHDF5,$(DFLAGS)),-DHDF5)
-	CFLAGS += -I$(HDF5INCLUDE)
-	CXXFLAGS += -I$(HDF5INCLUDE)
-	GPUFLAGS += -I$(HDF5INCLUDE)
-	LIBS += -L$(HDF5DIR) -lhdf5
+	CFLAGS += -I/ihome/crc/install/power9/hdf5/1.12.0/build-gcc-10.1.0/include
+	CXXFLAGS += -I/ihome/crc/install/power9/hdf5/1.12.0/build-gcc-10.1.0/include
+	GPUFLAGS += -I/ihome/crc/install/power9/hdf5/1.12.0/build-gcc-10.1.0/include
+	LIBS += -L/ihome/crc/install/power9/hdf5/1.12.0/build-gcc-10.1.0/lib -lhdf5 -L/ihome/crc/install/power9/hdf5/1.12.0/build-gcc-10.1.0/lib
 endif
 
 ifeq ($(findstring -DMPI_CHOLLA,$(DFLAGS)),-DMPI_CHOLLA)
@@ -192,5 +192,3 @@ src/gpuCode.o:	$(CUOBJS)
 
 clean:
 	 rm -f $(OBJS) src/gpuCode.o $(EXEC)
-
-
