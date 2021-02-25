@@ -35,7 +35,7 @@ outdir=./
 #################################################
 # Parameters for 1D Riemann problems
 # density of left state
-rho_l=1.0
+rho_l=2.0
 # velocity of left state
 v_l=0.0
 # pressure of left state
