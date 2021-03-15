@@ -45,8 +45,8 @@ DFLAGS += -DPPMP
 
 # Riemann Solver
 #DFLAGS += -DEXACT
-DFLAGS += -DROE
-#DFLAGS += -DHLLC
+#DFLAGS += -DROE
+DFLAGS += -DHLLC
 
 # Integrator
 #DFLAGS += -DCTU

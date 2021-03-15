@@ -34,7 +34,7 @@ outdir=./
 # initial density 
 rho=1.0
 # velocity in the x direction 
-vx=1.0
+vx=-1.0
 # velocity in the y direction
 vy=0
 # velocity in the z direction
