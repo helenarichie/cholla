@@ -38,9 +38,9 @@ DFLAGS += -DHDF5
 
 # Reconstruction
 #DFLAGS += -DPCM
-#DFLAGS += -DPLMP
+DFLAGS += -DPLMP
 #DFLAGS += -DPLMC
-DFLAGS += -DPPMP
+#DFLAGS += -DPPMP
 #DFLAGS += -DPPMC
 
 # Riemann Solver
