@@ -39,14 +39,14 @@ DFLAGS += -DHDF5
 # Reconstruction
 #DFLAGS += -DPCM
 #DFLAGS += -DPLMP
-DFLAGS += -DPLMC
+#DFLAGS += -DPLMC
 #DFLAGS += -DPPMP
 #DFLAGS += -DPPMC
 
 # Riemann Solver
 #DFLAGS += -DEXACT
-#DFLAGS += -DROE
-DFLAGS += -DHLLC
+DFLAGS += -DROE
+#DFLAGS += -DHLLC
 
 # Integrator
 #DFLAGS += -DCTU
