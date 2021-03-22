@@ -14,7 +14,7 @@
 #include"hydro_cuda.h"
 #endif
 
-#define STEEPENING
+// #define STEEPENING
 // #define FLATTENING
 //Note: Errors when using FLATTENING, need to check the ghost cells
 
