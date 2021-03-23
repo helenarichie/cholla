@@ -531,7 +531,7 @@ void Grid3D::KH()
         {
           C.density[id] = d2;
           C.momentum_x[id] = v2*C.density[id];
-          C.momentum_y[id] = C.density[id]*A*sin(4*PI*x_pos);
+          C.momentum_y[id] = C.density[id]*A*sin(2*PI*x_pos);
           C.momentum_z[id] = 0.0;
           C.Energy[id] = P/(gama-1.0) + 0.5*(C.momentum_x[id]*C.momentum_x[id] + C.momentum_y[id]*C.momentum_y[id])/C.density[id];
           #ifdef SCALAR
