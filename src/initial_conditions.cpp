@@ -644,7 +644,7 @@ void Grid3D::KH_res_ind()
             C.momentum_y[id] = C.density[id] * A*sin(12*PI*x_pos) * exp( -0.5*pow(y_pos-0.25 - sqrt(-2.0*dy*dy*log(0.5)),2)/(dy*dy) );
           }
 
-        }/*
+        }
         //C.momentum_y[id] = C.density[id] * A*sin(4*PI*x_pos);
         C.momentum_z[id] = 0.0;
         mx = C.momentum_x[id];
@@ -660,7 +660,7 @@ void Grid3D::KH_res_ind()
         {
           C.density[id] = d1 - (d1-d2)*exp( -0.5*pow(r-0.25 - sqrt(-2.0*dy*dy*log(0.5)),2)/(dy*dy) );
           C.momentum_x[id] = v1*C.density[id] - C.density[id] * exp( -0.5*pow(r-0.25 - sqrt(-2.0*dy*dy*log(0.5)),2)/(dy*dy) );
-          C.momentum_y[id] = cos(phi) * C.density[id] * A*sin(12*PI*x_pos) * exp( -0.5*pow(r-0.25 + sqrt(-2.0*dy*dy*log(0.5)),2)/(dy*dy) );
+          C.momentum_y[id] = cos(phi) * C.density[id] * A*sin(4*PI*x_pos) * exp( -0.5*pow(r-0.25 + sqrt(-2.0*dy*dy*log(0.5)),2)/(dy*dy) );
           C.momentum_z[id] = sin(phi) * C.density[id] * A*sin(4*PI*x_pos) * exp( -0.5*pow(r-0.25 + sqrt(-2.0*dy*dy*log(0.5)),2)/(dy*dy) );
           mx = C.momentum_x[id];
           my = C.momentum_y[id];
@@ -678,7 +678,7 @@ void Grid3D::KH_res_ind()
           mz = C.momentum_z[id];
           C.Energy[id] = P/(gama-1.0) + 0.5*(mx*mx + my*my + mz*mz)/C.density[id];
         }
-        */
+        
       }
     }
   }
