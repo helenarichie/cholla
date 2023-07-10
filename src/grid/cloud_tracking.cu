@@ -23,17 +23,17 @@
   #include "../utils/gpu.hpp"
   #include "../utils/hydro_utilities.h"
 
-void Dust_Update(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields, Real dt, Real gamma)
+void Cloud_Frame_Update(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields, Real dt, Real gamma, Real density_cl_unit)
 {
   int n_cells = nx * ny * nnz;
   int ngrid   = (n_cells + TPB - 1) / TPB;
   dim3 dim1dGrid(ngrid, 1, 1);
   dim3 dim1dBlock(TPB, 1, 1);
-  hipLaunchKernelGGL(Dust_Kernel, dim1dGrid, dim1dBlock, 0, 0, dev_conserved, nx, ny, nz, n_ghost, n_fields, dt, gamma);
+  hipLaunchKernelGGL(Cloud_Tracking_Kernel, dim1dGrid, dim1dBlock, 0, 0, dev_conserved, nx, ny, nz, n_ghost, n_fields, dt, gamma);
   CudaCheckError();
 }
 
-__global__ void Dust_Kernel(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields, Real dt, Real gamma)
+__global__ void Cloud_Tracking_Kernel(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields, Real dt, Real gamma, Real density_cl_init)
 {
   // get grid indices
   int n_cells = nx * ny * nz;
@@ -47,19 +47,23 @@ __global__ void Dust_Kernel(Real *dev_conserved, int nx, int ny, int nz, int n_g
   int id_x    = id - id_z * nx * ny - id_y * nx;
 
   // define physics variables
-  Real d_gas, d_dust;  // fluid mass densities
-  Real n;              // gas number density
-  Real mu = 0.6;       // mean molecular weight
-  Real T, E, P;        // temperature, energy, pressure
-  Real vx, vy, vz;     // velocities
+  Real density, velocity_x;
 
   if (id_x >= is && id_x < ie && id_y >= js && id_y < je && id_z >= ks && id_z < ke) {
-    d_gas  = dev_conserved[id + n_cells * grid_enum::density];
+
+    // get conserved quantites
+    density  = dev_conserved[id + n_cells * grid_enum::density];
+    velocity_x = dev_conserved[id + n_cells * grid_enum::momentum_x] / density;
+
+    if (density > (1/3*density_cl_init)) {
+      integrand = density * velocity_x * pow(dx, 3)
+    }
+
   }
 }
 
 // Shin et al. (2008)
-__device__ __host__ Real Calc_Cloud_Velocity(Real mass_cloud, Real density_cl, Real velocity_x_cl)
+__device__ __host__ Real Calc_Cloud_Velocity(Real mass_cl, Real density_cl, Real velocity_x_cl)
 {
   Real velocity_x_avg
 
