@@ -23,17 +23,17 @@
   #include "../utils/gpu.hpp"
   #include "../utils/hydro_utilities.h"
 
-void Cloud_Frame_Update(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields, Real dt, Real gamma, Real density_cl_unit)
+void Grid_Frame_Update(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields, Real dt, Real gamma, Real density_cl_init)
 {
   int n_cells = nx * ny * nnz;
   int ngrid   = (n_cells + TPB - 1) / TPB;
   dim3 dim1dGrid(ngrid, 1, 1);
   dim3 dim1dBlock(TPB, 1, 1);
-  hipLaunchKernelGGL(Cloud_Tracking_Kernel, dim1dGrid, dim1dBlock, 0, 0, dev_conserved, nx, ny, nz, n_ghost, n_fields, dt, gamma);
+  hipLaunchKernelGGL(Frame_Calc_Kernel, dim1dGrid, dim1dBlock, 0, 0, dev_conserved, nx, ny, nz, n_ghost, n_fields, dt, gamma, density_cl_init);
   CudaCheckError();
 }
 
-__global__ void Cloud_Tracking_Kernel(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields, Real dt, Real gamma, Real density_cl_init)
+__global__ void Frame_Calc_Kernel(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields, Real dt, Real gamma, Real density_cl_init)
 {
   // get grid indices
   int n_cells = nx * ny * nz;

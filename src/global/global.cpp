@@ -101,7 +101,7 @@ char *trim(char *s)
 const std::set<const char *> optionalParams = {
     "flag_delta",   "ddelta_dt",   "n_delta",  "Lz",       "Lx",      "phi",     "theta",
     "delta",        "nzr",         "nxr",      "H0",       "Omega_M", "Omega_L", "Init_redshift",
-    "End_redshift", "tile_length", "n_proc_x", "n_proc_y", "n_proc_z"};
+    "End_redshift", "tile_length", "n_proc_x", "n_proc_y", "n_proc_z", "density_cl_init"};
 
 /*! \fn int is_param_valid(char *name);
  * \brief Verifies that a param is valid (even if not needed).  Avoids
@@ -450,6 +450,10 @@ void parse_param(char *name, char *value, struct parameters *parms)
   } else if (strcmp(name, "skewersdir") == 0) {
     strncpy(parms->skewersdir, value, MAXLEN);
   #endif
+#endif
+#ifdef CLOUD_TRACKING
+  } else if (strcmp(name, "density_cl_init") == 0) {
+    parms->density_cl_init = atof(value);
 #endif
   } else if (!is_param_valid(name)) {
     chprintf("WARNING: %s/%s: Unknown parameter/value pair!\n", name, value);

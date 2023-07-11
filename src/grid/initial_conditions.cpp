@@ -68,7 +68,7 @@ void Grid3D::Set_Initial_Conditions(parameters P)
   } else if (strcmp(P.init, "Spherical_Overdensity_3D") == 0) {
     Spherical_Overdensity_3D();
   } else if (strcmp(P.init, "Clouds") == 0) {
-    Clouds();
+    Clouds(P);
   } else if (strcmp(P.init, "Read_Grid") == 0) {
 #ifndef ONLY_PARTICLES
     Read_Grid(P);
@@ -1216,7 +1216,7 @@ void Grid3D::Spherical_Overdensity_3D()
 
 /*! \fn void Clouds()
  *  \brief Bunch of clouds. */
-void Grid3D::Clouds()
+void Grid3D::Clouds(parameters P)
 {
   int i, j, k, id;
   int istart, jstart, kstart, iend, jend, kend;
@@ -1252,7 +1252,7 @@ void Grid3D::Clouds()
   }
 
   n_bg   = 1.68e-4;
-  n_cl   = 5.4e-2;
+  rho_cl = P.density_cl_init / DENSITY_UNIT;
   rho_bg = n_bg * mu * MP / DENSITY_UNIT;
   rho_cl = n_cl * mu * MP / DENSITY_UNIT;
   vx_bg  = 0.0;

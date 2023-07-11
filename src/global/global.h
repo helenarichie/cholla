@@ -322,6 +322,9 @@ struct parameters {
   char skewersdir[MAXLEN];
   #endif
 #endif
+#ifdef CLOUD_TRACKING
+  int density_cl_init;
+#endif
 };
 
 /*! \fn void parse_params(char *param_file, struct parameters * parms);
