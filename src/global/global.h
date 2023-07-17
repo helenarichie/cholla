@@ -299,7 +299,9 @@ struct parameters {
 #ifdef TILED_INITIAL_CONDITIONS
   Real tile_length;
 #endif  // TILED_INITIAL_CONDITIONS
-
+#ifdef CLOUD_TRACKING
+  Real density_cloud_init;
+#endif
 #ifdef SET_MPI_GRID
   // Set the MPI Processes grid [n_proc_x, n_proc_y, n_proc_z]
   int n_proc_x;
@@ -321,9 +323,6 @@ struct parameters {
   #ifdef OUTPUT_SKEWERS
   char skewersdir[MAXLEN];
   #endif
-#endif
-#ifdef CLOUD_TRACKING
-  int density_cl_init;
 #endif
 };
 

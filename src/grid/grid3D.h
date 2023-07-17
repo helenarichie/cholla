@@ -214,6 +214,10 @@ struct Header {
   Real min_dt_slow;
 #endif
 
+#ifdef CLOUD_TRACKING
+  Real density_cloud_init;
+#endif // CLOUD_TRACKING
+
   /*! \var t_wall
    *  \brief Wall time */
   Real t_wall;
@@ -670,7 +674,7 @@ class Grid3D
    * gravitational collapse */
   void Spherical_Overdensity_3D();
 
-  void Clouds();
+  void Clouds(struct parameters P);
 
   void Uniform_Grid();
 
