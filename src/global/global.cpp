@@ -98,10 +98,11 @@ char *trim(char *s)
 }
 
 // NOLINTNEXTLINE(cert-err58-cpp)
-const std::set<const char *> optionalParams = {
-    "flag_delta",   "ddelta_dt",   "n_delta",  "Lz",       "Lx",      "phi",     "theta",
-    "delta",        "nzr",         "nxr",      "H0",       "Omega_M", "Omega_L", "Init_redshift",
-    "End_redshift", "tile_length", "n_proc_x", "n_proc_y", "n_proc_z", "density_cloud_init"};
+const std::set<const char *> optionalParams = {"flag_delta", "ddelta_dt",     "n_delta",      "Lz",
+                                               "Lx",         "phi",           "theta",        "delta",
+                                               "nzr",        "nxr",           "H0",           "Omega_M",
+                                               "Omega_L",    "Init_redshift", "End_redshift", "tile_length",
+                                               "n_proc_x",   "n_proc_y",      "n_proc_z",     "density_cloud_init"};
 
 /*! \fn int is_param_valid(char *name);
  * \brief Verifies that a param is valid (even if not needed).  Avoids

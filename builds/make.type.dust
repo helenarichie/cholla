@@ -10,7 +10,7 @@ DFLAGS    += -DCUDA
 DFLAGS    += -DMPI_CHOLLA
 DFLAGS    += -DBLOCK
 DFLAGS    += -DPRECISION=2
-DFLAGS    += -DPPMC
+DFLAGS    += -DPPMP
 DFLAGS    += -DHLLC
 
 # DFLAGS    += -DDE
@@ -32,6 +32,7 @@ DFLAGS += -DDUST
 
 # Apply the cooling in the GPU from precomputed tables
 DFLAGS += -DCOOLING_GPU
+DFLAGS += -DCLOUDY_COOL
 
 #Measure the Timing of the different stages
 #DFLAGS += -DCPU_TIME
@@ -39,7 +40,7 @@ DFLAGS += -DCOOLING_GPU
 DFLAGS += -DSLICES
 DFLAGS += -DPROJECTION
 
-#DFLAGS += -DCLOUD_TRACKING
+DFLAGS += -DCLOUD_TRACKING
 
 DFLAGS    += $(OUTPUT)
 

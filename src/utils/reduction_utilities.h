@@ -265,7 +265,7 @@ inline __device__ double Atomic_Add_Bits(double* address, double val)
 {
   #ifdef O_HIP
   return atomicAdd(address, val);
-  #else   // O_HIP
+  #else  // O_HIP
   return atomicAdd(address, val);
   #endif
 }
@@ -359,7 +359,7 @@ __inline__ __device__ void gridReduceMax(Real val, Real* out)
 
 // =====================================================================
 /*!
- * \brief 
+ * \brief
  *
  * \details This function can perform a reduction to find the sum
  * across the entire grid. It relies on a

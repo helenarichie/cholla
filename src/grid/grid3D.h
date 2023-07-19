@@ -216,7 +216,7 @@ struct Header {
 
 #ifdef CLOUD_TRACKING
   Real density_cloud_init;
-#endif // CLOUD_TRACKING
+#endif  // CLOUD_TRACKING
 
   /*! \var t_wall
    *  \brief Wall time */

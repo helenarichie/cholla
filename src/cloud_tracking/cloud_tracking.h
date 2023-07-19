@@ -13,13 +13,17 @@
     #include "../global/global.h"
     #include "../utils/gpu.hpp"
 
-void Cloud_Frame_Update(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields, Real dt, Real gamma, Real density_cloud_init, Real *integrand, Real *density_cloud_tot);
+void Cloud_Frame_Update(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields, Real dt, Real gamma,
+                        Real density_cloud_init, Real *integrand, Real *density_cloud_tot);
 
-__global__ void Cloud_Tracking_Kernel(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields, Real dt, Real gamma, Real density_cloud_init, Real *integrand_cloud, Real *density_cloud);
+__global__ void Cloud_Tracking_Kernel(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields, Real dt,
+                                      Real gamma, Real density_cloud_init, Real *integrand_cloud, Real *density_cloud);
 
-void Update_Grid_Velocities(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields, Real dt, Real gamma, Real velocity_cloud, Real density_cloud_tot);
+void Update_Grid_Velocities(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields, Real dt, Real gamma,
+                            Real velocity_cloud, Real density_cloud_tot);
 
-__global__ void Velocity_Update(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields, Real dt, Real gamma, Real velocity_cloud, Real density_cloud_tot);
+__global__ void Velocity_Update(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields, Real dt,
+                                Real gamma, Real velocity_cloud, Real density_cloud_tot);
 
   #endif  // CLOUD_TRACKING_CUDA_H
 #endif    // CLOUD_TRACKING

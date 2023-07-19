@@ -154,8 +154,8 @@ void Grid3D::Initialize(struct parameters *P)
   C_cfl = 0.3;
 
 #ifdef AVERAGE_SLOW_CELLS
-  H.min_dt_slow = 1e-100;  // Initialize the minumum dt to a tiny number
-#endif                     // AVERAGE_SLOW_CELLS
+  H.min_dt_slow = 1e-4;  // Initialize the minumum dt to a tiny number
+#endif                   // AVERAGE_SLOW_CELLS
 
 #ifdef CLOUD_TRACKING
   H.density_cloud_init = P->density_cloud_init;
@@ -523,10 +523,12 @@ Real Grid3D::Update_Grid(void)
   Real integrand, density_cloud_tot;
   Real density;
   // Do the grid-wide reduction to get the sum of rho*vx and total density for the entire cloud
-  Cloud_Frame_Update(C.device, H.nx, H.ny, H.nz, H.n_ghost, H.n_fields, H.dt, gama, H.density_cloud_init, &integrand, &density_cloud_tot);
-  mass_cloud = density_cloud_tot * H.dx * H.dy * H.dz;
+  Cloud_Frame_Update(C.device, H.nx, H.ny, H.nz, H.n_ghost, H.n_fields, H.dt, gama, H.density_cloud_init, &integrand,
+                     &density_cloud_tot);
+  mass_cloud     = density_cloud_tot * H.dx * H.dy * H.dz;
   velocity_cloud = integrand / mass_cloud;
-  Update_Grid_Velocities(C.device, H.nx, H.ny, H.nz, H.n_ghost, H.n_fields, H.dt, gama, velocity_cloud, density_cloud_tot);
+  Update_Grid_Velocities(C.device, H.nx, H.ny, H.nz, H.n_ghost, H.n_fields, H.dt, gama, velocity_cloud,
+                         density_cloud_tot);
   // chprintf("Cloud frame update = %d\n", state);
   chprintf("Average cloud velocity = %e\n", velocity_cloud);
   chprintf("Integrand = %e\n", integrand);

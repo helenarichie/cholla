@@ -66,7 +66,6 @@ TEST(tALLKernelReduceMax, CorrectInputExpectCorrectOutput)
   testingUtilities::checkResults(maxValue, dev_max.at(0), "maximum value found");
 }
 
-
 TEST(tALLKernelReduceSum, CorrectInputExpectCorrectOutput)
 {
   // Launch parameters
