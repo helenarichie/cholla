@@ -70,7 +70,6 @@ __global__ void Cloud_Tracking_Kernel(Real *dev_conserved, int nx, int ny, int n
       reduction_utilities::Grid_Reduction_Add(density, density_cloud);
     }
   }
-  // }
 }
 
 void Update_Grid_Velocities(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields, Real dt, Real gamma, Real velocity_cloud, Real density_cloud_tot)
@@ -96,7 +95,7 @@ __global__ void Velocity_Update(Real *dev_conserved, int nx, int ny, int nz, int
   //for (size_t id = threadIdx.x + blockIdx.x * blockDim.x; id < n_cells; id += blockDim.x * gridDim.x) {
   // threads corresponding to real cells do the calculation
   if (id_x >= is && id_x < ie && id_y >= js && id_y < je && id_z >= ks && id_z < ke) {
-    dev_conserved[id+n_cells*grid_enum::momentum_x] -= velocity_cloud*density_cloud_tot;
+    // dev_conserved[id+n_cells*grid_enum::momentum_x] -= velocity_cloud*density_cloud_tot;
   }
   // }
 }

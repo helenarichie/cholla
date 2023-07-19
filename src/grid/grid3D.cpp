@@ -530,7 +530,7 @@ Real Grid3D::Update_Grid(void)
   // chprintf("Cloud frame update = %d\n", state);
   chprintf("Average cloud velocity = %e\n", velocity_cloud);
   chprintf("Integrand = %e\n", integrand);
-  chprintf("Total cloud density = %e\n", density_cloud_tot);
+  chprintf("Mass cloud = %e\n", mass_cloud);
   #endif  // CLOUD_TRACKING
 
 #endif  // CUDA

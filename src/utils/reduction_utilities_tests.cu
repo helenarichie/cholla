@@ -65,6 +65,42 @@ TEST(tALLKernelReduceMax, CorrectInputExpectCorrectOutput)
   // Perform comparison
   testingUtilities::checkResults(maxValue, dev_max.at(0), "maximum value found");
 }
-// =============================================================================
-// Tests for divergence max reduction
-// =============================================================================
+
+
+TEST(tALLKernelReduceSum, CorrectInputExpectCorrectOutput)
+{
+  // Launch parameters
+  // =================
+  cuda_utilities::AutomaticLaunchParams static const launchParams(reduction_utilities::Kernel_Reduce_Add);
+
+  // Grid Parameters & testing parameters
+  // ====================================
+  size_t const size = std::pow(64, 3);
+
+  std::vector<Real> host_grid(size);
+
+  // Fill grid with ones
+  for (Real& host_data : host_grid) {
+    host_data = 1;
+  }
+
+  // Allocating and copying to device
+  // ================================
+  cuda_utilities::DeviceVector<Real> dev_grid(host_grid.size());
+  dev_grid.cpyHostToDevice(host_grid);
+
+  cuda_utilities::DeviceVector<Real> static dev_sum(1);
+  dev_sum.assign(0, 0);
+
+  // Do the reduction
+  // ================
+  hipLaunchKernelGGL(reduction_utilities::Kernel_Reduce_Add, launchParams.numBlocks, launchParams.threadsPerBlock, 0, 0,
+                     dev_grid.data(), dev_sum.data(), host_grid.size());
+  CudaCheckError();
+
+  // printf("size: %d\n", size);
+  // printf("sum: %e\n", dev_sum.at(0));
+
+  // Perform comparison
+  testingUtilities::checkResults(size, dev_sum.at(0), "sum found");
+}

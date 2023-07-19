@@ -416,6 +416,8 @@ __inline__ __device__ void Grid_Reduction_Add(Real val, Real* out)
  * \param[in] N The size of the `in` array
  */
 __global__ void kernelReduceMax(Real* in, Real* out, size_t N);
+
+__global__ void Kernel_Reduce_Add(Real* in, Real* out, size_t N);
 // =====================================================================
 }  // namespace reduction_utilities
 #endif  // CUDA
