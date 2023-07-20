@@ -100,10 +100,10 @@ __global__ void Velocity_Update(Real *dev_conserved, int nx, int ny, int nz, int
 
   //  threads corresponding to real cells do the calculation
   if (id_x >= is && id_x < ie && id_y >= js && id_y < je && id_z >= ks && id_z < ke) {
-    density = dev_conserved[id + n_cells * grid_enum::density];
-    momentum_x = dev_conserved[id + n_cells * grid_enum::momentum_x];
-    velocity_x = density * momentum_x;
-    dev_conserved[id + n_cells * grid_enum::momentum_x] = abs(velocity_x-velocity_cloud) * density;
+    density                                             = dev_conserved[id + n_cells * grid_enum::density];
+    momentum_x                                          = dev_conserved[id + n_cells * grid_enum::momentum_x];
+    velocity_x                                          = density * momentum_x;
+    dev_conserved[id + n_cells * grid_enum::momentum_x] = abs(velocity_x - velocity_cloud) * density;
   }
 }
 
