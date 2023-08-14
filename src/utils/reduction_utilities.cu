@@ -12,6 +12,7 @@
 
 // Local Includes
 #include "../utils/reduction_utilities.h"
+#include "../utils/DeviceVector.h"
 
 #ifdef CUDA
 namespace reduction_utilities
@@ -44,15 +45,28 @@ __global__ void kernelReduceMax(Real* in, Real* out, size_t N)
 __global__ void Kernel_Reduce_Add(Real* in, Real* out, size_t N)
 {
   // Initialize maxVal to the smallest possible number
-  Real sum_val = 0;
+  Real sum_stride[262144];
+  for(int i = 0; i < 262144; i++)
+  {
+    sum_stride[i] = 0;
+  }
 
   // Grid stride loop to perform as much of the reduction as possible
   for (size_t i = blockIdx.x * blockDim.x + threadIdx.x; i < N; i += blockDim.x * gridDim.x) {
     // A transformation could go here
 
     // Grid stride reduction
-    sum_val += in[i];
+    sum_stride[i] = in[i];
   }
+
+  Real sum_val = 0;
+
+  for(int i = 0; i < N; i++)
+  {
+    sum_val += sum_stride[i];
+  }
+
+  printf("hello %f\n", sum_val);
 
   // Find the maximum val in the grid and write it to `out`. Note that
   // there is no execution/memory barrier after this and so the

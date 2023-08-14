@@ -30,28 +30,28 @@ void Cloud_Frame_Update(Real *dev_conserved, int nx, int ny, int nz, Real dx, Re
                         int n_fields, Real dt, Real gamma, Real density_cloud_init, Real *integrand,
                         Real *density_cloud_tot, Real *mass_cloud_tot)
 {
-  // Allocate the device memory
-  cuda_utilities::DeviceVector<Real> static integrand_cloud(1);
-  cuda_utilities::DeviceVector<Real> static density_cloud(1);
-  cuda_utilities::DeviceVector<Real> static mass_cloud(1);
-
-  // cuda_utilities::AutomaticLaunchParams static const launchParams(Cloud_Tracking_Kernel);
+  // cuda_utilities::AutomaticLaunchParams static const launchParams(Cloud_Tracking_Kernel)
 
   int n_cells = nx * ny * nz;
   int ngrid   = (n_cells + TPB - 1) / TPB;
   dim3 dim1dGrid(ngrid, 1, 1);
   dim3 dim1dBlock(TPB, 1, 1);
 
+  // Allocate the device memory
+  cuda_utilities::DeviceVector<Real> static integrand_cloud(1, true);
+  cuda_utilities::DeviceVector<Real> static density_cloud(1, true);
+  cuda_utilities::DeviceVector<Real> static mass_cloud(1, true);
+
   cuda_utilities::AutomaticLaunchParams static const launchParams(Cloud_Tracking_Kernel);
 
-  printf("TPB: %d\n", TPB);
-  printf("ngrid: %d\n", ngrid);
-  printf("nx, ny, nz: %d %d %d\n", nx, ny, nz);
-  printf("ngrid: %d\n", n_cells);
-  printf("dim1dGrid: %d\n", dim1dGrid);
-  printf("dim1dBlock: %d\n", dim1dBlock);
-  printf("numBLocks: %d\n", launchParams.numBlocks);
-  printf("threadsPerBLock: %d\n", launchParams.threadsPerBlock);
+  // printf("TPB: %d\n", TPB);
+  // printf("ngrid: %d\n", ngrid);
+  // printf("nx, ny, nz: %d %d %d\n", nx, ny, nz);
+  // printf("ngrid: %d\n", n_cells);
+  // printf("dim1dGrid: %d\n", dim1dGrid);
+  // printf("dim1dBlock: %d\n", dim1dBlock);
+  // printf("numBLocks: %d\n", launchParams.numBlocks);
+  // printf("threadsPerBLock: %d\n", launchParams.threadsPerBlock);
 
   hipLaunchKernelGGL(Cloud_Tracking_Kernel, launchParams.numBlocks, launchParams.threadsPerBlock, 0, 0, dev_conserved,
                      nx, ny, nz, dx, dy, dz, n_ghost, n_fields, dt, gamma, density_cloud_init, integrand_cloud.data(),
@@ -69,6 +69,9 @@ __global__ void Cloud_Tracking_Kernel(Real *dev_conserved, int nx, int ny, int n
 {
   int xid, yid, zid, n_cells;
   n_cells = nx * ny * nz;
+  Real density_cum = 0;
+  Real velocity_x_cum = 0;
+  Real mass_cum = 0;
   Real density, velocity_x, mass;
 
   // Grid stride loop to perform as much of the reduction as possible. The
@@ -88,15 +91,19 @@ __global__ void Cloud_Tracking_Kernel(Real *dev_conserved, int nx, int ny, int n
       mass       = density * dx * dy * dz;
 
       if (density > (1 / 3 * (density_cloud_init / DENSITY_UNIT))) {
-        printf("inside if statement: %d %e\n", id, mass);
+        // printf("inside if statement: %d %e\n", id, mass);
+        density_cum += density;
+        velocity_x_cum += velocity_x;
+        mass_cum += mass;
         // Do grid-wide reduction to compute mass-averaged cloud velocity (Shin et al. 2008, eq. 9)
-        reduction_utilities::Grid_Reduction_Add(density * velocity_x, integrand_cloud);
-        reduction_utilities::Grid_Reduction_Add(density, density_cloud);
-        reduction_utilities::Grid_Reduction_Add(mass, mass_cloud);
       }
     }
   }
+  reduction_utilities::Grid_Reduction_Add(density_cum * velocity_x_cum, integrand_cloud);
+  reduction_utilities::Grid_Reduction_Add(density_cum, density_cloud);
+  reduction_utilities::Grid_Reduction_Add(mass_cum, mass_cloud);
 }
+
 
 void Update_Grid_Velocities(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields, Real dt, Real gamma,
                             Real velocity_cloud, Real density_cloud_tot, Real mass_cloud_tot)
