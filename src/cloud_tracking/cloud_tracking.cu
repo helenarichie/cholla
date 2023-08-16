@@ -69,10 +69,16 @@ __global__ void Cloud_Tracking_Kernel(Real *dev_conserved, int nx, int ny, int n
 {
   int xid, yid, zid, n_cells;
   n_cells = nx * ny * nz;
-  Real density_cum = 0;
-  Real velocity_x_cum = 0;
-  Real mass_cum = 0;
+  __shared__ Real density_stride[TPB];
+  __shared__ Real velocity_x_stride[TPB];
+  __shared__ Real mass_stride[TPB];
   Real density, velocity_x, mass;
+
+  for (int i = 0; i < TPB; i ++) {
+    density_stride[i] = 0;
+    velocity_x_stride[i] = 0;
+    mass_stride[i] = 0;
+  }
 
   // Grid stride loop to perform as much of the reduction as possible. The
   // fact that `id` has type `size_t` is important. I'm not totally sure why
@@ -92,16 +98,18 @@ __global__ void Cloud_Tracking_Kernel(Real *dev_conserved, int nx, int ny, int n
 
       if (density > (1 / 3 * (density_cloud_init / DENSITY_UNIT))) {
         // printf("inside if statement: %d %e\n", id, mass);
-        density_cum += density;
-        velocity_x_cum += velocity_x;
-        mass_cum += mass;
+        density_stride[threadIdx.x] += density;
+        velocity_x_stride[threadIdx.x] += velocity_x;
+        mass_stride[threadIdx.x] += mass;
         // Do grid-wide reduction to compute mass-averaged cloud velocity (Shin et al. 2008, eq. 9)
       }
     }
   }
-  reduction_utilities::Grid_Reduction_Add(density_cum * velocity_x_cum, integrand_cloud);
-  reduction_utilities::Grid_Reduction_Add(density_cum, density_cloud);
-  reduction_utilities::Grid_Reduction_Add(mass_cum, mass_cloud);
+  __syncthreads();
+
+  reduction_utilities::Grid_Reduction_Add(density_stride[threadIdx.x] * velocity_x_stride[threadIdx.x], integrand_cloud);
+  reduction_utilities::Grid_Reduction_Add(density_stride[threadIdx.x], density_cloud);
+  reduction_utilities::Grid_Reduction_Add(mass_stride[threadIdx.x], mass_cloud);
 }
 
 
