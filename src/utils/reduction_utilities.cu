@@ -11,8 +11,8 @@
 // External Includes
 
 // Local Includes
-#include "../utils/reduction_utilities.h"
 #include "../utils/DeviceVector.h"
+#include "../utils/reduction_utilities.h"
 
 #ifdef CUDA
 namespace reduction_utilities
@@ -46,8 +46,7 @@ __global__ void Kernel_Reduce_Add(Real* in, Real* out, size_t N)
 {
   // Initialize maxVal to the smallest possible number
   Real sum_stride[262144];
-  for(int i = 0; i < 262144; i++)
-  {
+  for (int i = 0; i < 262144; i++) {
     sum_stride[i] = 0;
   }
 
@@ -61,8 +60,7 @@ __global__ void Kernel_Reduce_Add(Real* in, Real* out, size_t N)
 
   Real sum_val = 0;
 
-  for(int i = 0; i < N; i++)
-  {
+  for (int i = 0; i < N; i++) {
     sum_val += sum_stride[i];
   }
 

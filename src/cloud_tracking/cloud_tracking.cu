@@ -74,10 +74,10 @@ __global__ void Cloud_Tracking_Kernel(Real *dev_conserved, int nx, int ny, int n
   __shared__ Real mass_stride[TPB];
   Real density, velocity_x, mass;
 
-  for (int i = 0; i < TPB; i ++) {
-    density_stride[i] = 0;
+  for (int i = 0; i < TPB; i++) {
+    density_stride[i]    = 0;
     velocity_x_stride[i] = 0;
-    mass_stride[i] = 0;
+    mass_stride[i]       = 0;
   }
 
   // Grid stride loop to perform as much of the reduction as possible. The
@@ -107,11 +107,11 @@ __global__ void Cloud_Tracking_Kernel(Real *dev_conserved, int nx, int ny, int n
   }
   __syncthreads();
 
-  reduction_utilities::Grid_Reduction_Add(density_stride[threadIdx.x] * velocity_x_stride[threadIdx.x], integrand_cloud);
+  reduction_utilities::Grid_Reduction_Add(density_stride[threadIdx.x] * velocity_x_stride[threadIdx.x],
+                                          integrand_cloud);
   reduction_utilities::Grid_Reduction_Add(density_stride[threadIdx.x], density_cloud);
   reduction_utilities::Grid_Reduction_Add(mass_stride[threadIdx.x], mass_cloud);
 }
-
 
 void Update_Grid_Velocities(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields, Real dt, Real gamma,
                             Real velocity_cloud, Real density_cloud_tot, Real mass_cloud_tot)
