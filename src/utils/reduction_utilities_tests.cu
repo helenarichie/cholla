@@ -68,3 +68,43 @@ TEST(tALLKernelReduceMax, CorrectInputExpectCorrectOutput)
 // =============================================================================
 // Tests for divergence max reduction
 // =============================================================================
+
+TEST(tALLKernelReduceSum, CorrectInputExpectCorrectOutput)
+{
+  // Launch parameters
+  // =================
+  cuda_utilities::AutomaticLaunchParams static const launch_params(reduction_utilities::Kernel_Reduce_Add);
+
+  // Grid Parameters & testing parameters
+  // ====================================
+  size_t const size = std::pow(64, 3);
+  std::vector<Real> host_grid(size);  // host copy of array to be summed
+  std::vector<Real> host_sum(1);  // variable to store result of sum reduction
+
+  host_sum[0] = 0.0;
+  // Fill grid with ones
+  for (Real& host_data : host_grid) {
+    host_data = 1;
+  }
+  // Allocating and copying to device
+  // ================================
+  cuda_utilities::DeviceVector<Real> dev_grid(host_grid.size());
+  dev_grid.cpyHostToDevice(host_grid);
+
+  cuda_utilities::DeviceVector<Real> static dev_sum(1);
+  dev_sum.assign(0, 0);
+
+  // Do the reduction
+  // ================
+  // .data() passes the a pointer to the kernel
+  hipLaunchKernelGGL(reduction_utilities::Kernel_Reduce_Add, launch_params.numBlocks, launch_params.threadsPerBlock, 0, 0,
+                     dev_grid.data(), dev_sum.data(), host_grid.size());
+  cudaDeviceSynchronize();
+  CudaCheckError();
+
+  dev_sum.cpyDeviceToHost(host_sum);
+  CudaCheckError();
+
+  // Perform comparison
+  testingUtilities::checkResults(size, host_sum[0], "sum found");
+}
