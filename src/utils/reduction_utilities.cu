@@ -44,35 +44,22 @@ __global__ void kernelReduceMax(Real* in, Real* out, size_t N)
 // =====================================================================
 __global__ void Kernel_Reduce_Add(Real* in, Real* out, size_t N)
 {
-  // Initialize maxVal to the smallest possible number
-  Real sum_stride[262144];
-  for (int i = 0; i < 262144; i++) {
+  __shared__ Real sum_stride[TPB]; // array shared between each block
+ 
+  for (int i = 0; i < TPB; i++) {
     sum_stride[i] = 0;
   }
 
-  // Grid stride loop to perform as much of the reduction as possible
+// Grid stride loop to read global array into shared block-wide array
   for (size_t i = blockIdx.x * blockDim.x + threadIdx.x; i < N; i += blockDim.x * gridDim.x) {
-    // A transformation could go here
-
-    // Grid stride reduction
-    sum_stride[i] = in[i];
+    sum_stride[threadIdx.x] += in[i];
   }
+  __syncthreads();
 
-  Real sum_val = 0;
-
-  for (int i = 0; i < N; i++) {
-    sum_val += sum_stride[i];
+  Grid_Reduction_Add(sum_stride[threadIdx.x], out);
+  if (threadIdx.x == 0) {
+    printf("kernel: %f\n", *out);
   }
-
-  printf("hello %f\n", sum_val);
-
-  // Find the maximum val in the grid and write it to `out`. Note that
-  // there is no execution/memory barrier after this and so the
-  // reduced scalar is not available for use in this kernel. The grid
-  // wide barrier can be accomplished by ending this kernel here and
-  // then launching a new one or by using cooperative groups. If this
-  // becomes a need it can be added later
-  Grid_Reduction_Add(sum_val, out);
 }
 // =====================================================================
 }  // namespace reduction_utilities
