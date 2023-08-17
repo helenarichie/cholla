@@ -1343,11 +1343,11 @@ void Grid3D::Clouds(struct parameters P)
   n_cl   = 5.4e-2;
   rho_bg = n_bg * mu * MP / DENSITY_UNIT;
   rho_cl = n_cl * mu * MP / DENSITY_UNIT;
-  #ifdef CLOUD_TRACKING
+#ifdef CLOUD_TRACKING
   rho_cl = P.density_cloud_init / DENSITY_UNIT;
   printf("Cloud initial density: %e\n", P.density_cloud_init);
-  #endif
-  vx_bg  = 0.0;
+#endif
+  vx_bg = 0.0;
   // vx_c  = -200*TIME_UNIT/KPC; // convert from km/s to kpc/kyr
   vx_cl = 0.0;
   vy_bg = vy_cl = 0.0;
