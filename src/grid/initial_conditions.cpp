@@ -68,7 +68,7 @@ void Grid3D::Set_Initial_Conditions(parameters P)
   } else if (strcmp(P.init, "Spherical_Overdensity_3D") == 0) {
     Spherical_Overdensity_3D();
   } else if (strcmp(P.init, "Clouds") == 0) {
-    Clouds();
+    Clouds(P);
   } else if (strcmp(P.init, "Read_Grid") == 0) {
 #ifndef ONLY_PARTICLES
     Read_Grid(P);
@@ -1304,7 +1304,7 @@ void Grid3D::Spherical_Overdensity_3D()
 
 /*! \fn void Clouds()
  *  \brief Bunch of clouds. */
-void Grid3D::Clouds()
+void Grid3D::Clouds(struct parameters P)
 {
   int i, j, k, id;
   int istart, jstart, kstart, iend, jend, kend;
@@ -1343,6 +1343,10 @@ void Grid3D::Clouds()
   n_cl   = 5.4e-2;
   rho_bg = n_bg * mu * MP / DENSITY_UNIT;
   rho_cl = n_cl * mu * MP / DENSITY_UNIT;
+  #ifdef CLOUD_TRACKING
+  rho_cl = P.density_cloud_init / DENSITY_UNIT;
+  printf("Cloud initial density: %e\n", P.density_cloud_init);
+  #endif
   vx_bg  = 0.0;
   // vx_c  = -200*TIME_UNIT/KPC; // convert from km/s to kpc/kyr
   vx_cl = 0.0;

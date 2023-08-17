@@ -296,6 +296,9 @@ struct parameters {
   char scale_outputs_file[MAXLEN];  // File for the scale_factor output values
                                     // for cosmological simulations
 #endif                              // COSMOLOGY
+#ifdef CLOUD_TRACKING
+  Real density_cloud_init;
+#endif
 #ifdef TILED_INITIAL_CONDITIONS
   Real tile_length;
 #endif  // TILED_INITIAL_CONDITIONS

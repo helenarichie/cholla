@@ -670,7 +670,7 @@ class Grid3D
    * gravitational collapse */
   void Spherical_Overdensity_3D();
 
-  void Clouds();
+  void Clouds(struct parameters P);
 
   void Uniform_Grid();
 
