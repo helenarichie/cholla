@@ -293,7 +293,6 @@ inline __device__ double Atomic_Add_Bits(double* address, double val)
 }
 // =====================================================================
 
-
 // =====================================================================
 /*!
  * \brief Perform a reduction within the grid to find the maximum value
