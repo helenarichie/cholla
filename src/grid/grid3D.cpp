@@ -39,6 +39,10 @@
   #include "../cooling/cooling_cuda.h"  // provides Cooling_Update
 #endif
 
+#ifdef CLOUD_TRACKING
+  #include "../cloud_tracking/cloud_tracking.h"
+#endif
+
 #ifdef DUST
   #include "../dust/dust_cuda.h"  // provides Dust_Update
 #endif
@@ -153,6 +157,10 @@ void Grid3D::Initialize(struct parameters *P)
 #ifdef AVERAGE_SLOW_CELLS
   H.min_dt_slow = 1e-100;  // Initialize the minumum dt to a tiny number
 #endif                     // AVERAGE_SLOW_CELLS
+
+#ifdef CLOUD_TRACKING
+  H.density_cloud_init = P->density_cloud_init;
+#endif
 
 #ifndef MPI_CHOLLA
 
@@ -452,6 +460,21 @@ Real Grid3D::Update_Grid(void)
   } else if (H.nx > 1 && H.ny > 1 && H.nz > 1)  // 3D
   {
 #ifdef CUDA
+  #ifdef CLOUD_TRACKING
+    // ==Subtract average cloud velocity from grid==
+    // Variables to store the mass-averaged cloud velocity and total cloud mass
+    Real integrand, density_cloud_tot, mass_cloud_tot, velocity_cloud;
+    // Do the grid-wide reduction to get the sum of rho*vx and total density for the entire cloud
+    Cloud_Velocity_Reduction(C.device, H.nx, H.ny, H.nz, H.dx, H.dy, H.dz, H.n_ghost, H.n_fields, H.dt, gama,
+                             H.density_cloud_init, &integrand, &density_cloud_tot, &mass_cloud_tot);
+
+    // chprintf("Cloud mass = %e\n", mass_cloud_tot);
+    velocity_cloud = integrand / mass_cloud_tot;
+    // chprintf("Cloud frame update = %d\n", state);
+    chprintf("Average cloud velocity = %e km/s\n", velocity_cloud*KPC/TIME_UNIT);
+    chprintf("Integrand = %e\n", integrand);
+    chprintf("Mass cloud = %e M_sun\n", mass_cloud_tot);
+  #endif  // CLOUD_TRACKING
   #ifdef VL
     VL_Algorithm_3D_CUDA(C.device, C.d_Grav_potential, H.nx, H.ny, H.nz, x_off, y_off, z_off, H.n_ghost, H.dx, H.dy,
                          H.dz, H.xbound, H.ybound, H.zbound, H.dt, H.n_fields, density_floor, U_floor,

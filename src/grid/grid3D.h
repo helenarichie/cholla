@@ -214,6 +214,10 @@ struct Header {
   Real min_dt_slow;
 #endif
 
+#ifdef CLOUD_TRACKING
+  Real density_cloud_init;
+#endif  // CLOUD_TRACKING
+
   /*! \var t_wall
    *  \brief Wall time */
   Real t_wall;
