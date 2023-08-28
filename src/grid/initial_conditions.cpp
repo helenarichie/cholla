@@ -1318,7 +1318,7 @@ void Grid3D::Clouds(struct parameters P)
   Real p_bg, p_cl;       // background and cloud pressure
   Real mu   = 0.6;       // mean atomic weight
   int N_cl  = 1;         // number of clouds
-  Real R_cl = 0.005;       // cloud radius in code units (kpc)
+  Real R_cl = 0.005;     // cloud radius in code units (kpc)
   Real cl_pos[N_cl][3];  // array of cloud positions
   Real r;
 
@@ -1347,7 +1347,7 @@ void Grid3D::Clouds(struct parameters P)
   rho_cl = P.density_cloud_init / DENSITY_UNIT;
   printf("Cloud initial density: %e\n", P.density_cloud_init);
 #endif
-  vx_bg = 1000*TIME_UNIT/KPC;
+  vx_bg = 1000 * TIME_UNIT / KPC;
   // vx_c  = -200*TIME_UNIT/KPC; // convert from km/s to kpc/kyr
   vx_cl = 0.0;
   vy_bg = vy_cl = 0.0;

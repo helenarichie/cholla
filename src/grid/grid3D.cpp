@@ -468,7 +468,7 @@ Real Grid3D::Update_Grid(void)
 
     // Calculate the mass-averaged x-velocity (Shin et al. (2008) eq. 9)
     velocity_x_cloud_avg = integrand_cloud / mass_cloud_tot;
-    chprintf("Average cloud velocity = %e km/s\n", velocity_x_cloud_avg*KPC/TIME_UNIT);
+    chprintf("Average cloud velocity = %e km/s\n", velocity_x_cloud_avg * KPC / TIME_UNIT);
     chprintf("Mass = %e M_sun\n", mass_cloud_tot);
 
   #endif  // CLOUD_TRACKING
