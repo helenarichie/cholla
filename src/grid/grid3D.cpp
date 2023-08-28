@@ -461,19 +461,16 @@ Real Grid3D::Update_Grid(void)
   {
 #ifdef CUDA
   #ifdef CLOUD_TRACKING
-    // ==Subtract average cloud velocity from grid==
-    // Variables to store the mass-averaged cloud velocity and total cloud mass
-    Real integrand, density_cloud_tot, mass_cloud_tot, velocity_cloud;
-    // Do the grid-wide reduction to get the sum of rho*vx and total density for the entire cloud
+    Real mass_cloud_tot, integrand_cloud, velocity_x_cloud_avg;
+    // Do the grid-wide reduction to get the sum of rho*vx*V and the total mass for the entire cloud
     Cloud_Velocity_Reduction(C.device, H.nx, H.ny, H.nz, H.dx, H.dy, H.dz, H.n_ghost, H.n_fields, H.dt, gama,
-                             H.density_cloud_init, &integrand, &density_cloud_tot, &mass_cloud_tot);
+                             H.density_cloud_init, &mass_cloud_tot, &integrand_cloud);
 
-    // chprintf("Cloud mass = %e\n", mass_cloud_tot);
-    velocity_cloud = integrand / mass_cloud_tot;
-    // chprintf("Cloud frame update = %d\n", state);
-    chprintf("Average cloud velocity = %e km/s\n", velocity_cloud*KPC/TIME_UNIT);
-    chprintf("Integrand = %e\n", integrand);
-    chprintf("Mass cloud = %e M_sun\n", mass_cloud_tot);
+    // Calculate the mass-averaged x-velocity (Shin et al. (2008) eq. 9)
+    velocity_x_cloud_avg = integrand_cloud / mass_cloud_tot;
+    chprintf("Average cloud velocity = %e km/s\n", velocity_x_cloud_avg*KPC/TIME_UNIT);
+    chprintf("Mass = %e M_sun\n", mass_cloud_tot);
+
   #endif  // CLOUD_TRACKING
   #ifdef VL
     VL_Algorithm_3D_CUDA(C.device, C.d_Grav_potential, H.nx, H.ny, H.nz, x_off, y_off, z_off, H.n_ghost, H.dx, H.dy,

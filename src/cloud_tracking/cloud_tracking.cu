@@ -18,49 +18,42 @@
 #include "../utils/reduction_utilities.h"
 
 void Cloud_Velocity_Reduction(Real *dev_conserved, int nx, int ny, int nz, Real dx, Real dy, Real dz, int n_ghost, 
-                              int n_fields, Real dt, Real gamma, Real density_cloud_init, Real *integrand, 
-                              Real *density_cloud_tot, Real *mass_cloud_tot) 
+                              int n_fields, Real dt, Real gamma, Real density_cloud_init, Real *mass_cloud, Real *integrand_cloud) 
 {
     cuda_utilities::AutomaticLaunchParams static const launchParams(Cloud_Reduction_Kernel);    
 
-    // Allocate the device memory to store the results of the reductions. "true" argument initializes arrays to zero
-    cuda_utilities::DeviceVector<Real> static dev_integrand(1, true);
-    cuda_utilities::DeviceVector<Real> static dev_density_cloud_tot(1, true);
-    cuda_utilities::DeviceVector<Real> static dev_mass_cloud_tot(1, true);
+    cuda_utilities::DeviceVector<Real> static dev_mass_cloud(1, true);
+    cuda_utilities::DeviceVector<Real> static dev_integrand_cloud(1, true);
 
     // Initialize host vectors to copy results to
-    std::vector<Real> host_integrand(1);
-    std::vector<Real> host_density_cloud_tot(1);
-    std::vector<Real> host_mass_cloud_tot(1);
+    std::vector<Real> host_mass_cloud(1);
+    std::vector<Real> host_integrand_cloud(1);
 
     // .data() gets device vector pointers
     hipLaunchKernelGGL(Cloud_Reduction_Kernel, launchParams.numBlocks, launchParams.threadsPerBlock, 0, 0, dev_conserved,
-                       nx, ny, nz, dx, dy, dz, n_ghost, n_fields, dt, gamma, density_cloud_init, dev_integrand.data(),
-                       dev_density_cloud_tot.data(), dev_mass_cloud_tot.data());
+                       nx, ny, nz, dx, dy, dz, n_ghost, n_fields, dt, gamma, density_cloud_init, dev_mass_cloud.data(),
+                       dev_integrand_cloud.data());
     cudaDeviceSynchronize();
     CudaCheckError();
 
     // Copy result of reductions from device to host
-    dev_integrand.cpyDeviceToHost(host_integrand);
-    dev_density_cloud_tot.cpyDeviceToHost(host_density_cloud_tot);
-    dev_mass_cloud_tot.cpyDeviceToHost(host_mass_cloud_tot);
+    dev_mass_cloud.cpyDeviceToHost(host_mass_cloud);
+    dev_integrand_cloud.cpyDeviceToHost(host_integrand_cloud);
 
-    *integrand         = host_integrand[0];
-    *density_cloud_tot = host_density_cloud_tot[0];
-    *mass_cloud_tot    = host_mass_cloud_tot[0];
+
+    *mass_cloud        = host_mass_cloud[0];
+    *integrand_cloud   = host_integrand_cloud[0];
 }
 
 __global__ void Cloud_Reduction_Kernel(Real *dev_conserved, int nx, int ny, int nz, Real dx, Real dy, Real dz, 
                                        int n_ghost, int n_fields, Real dt, Real gamma, Real density_cloud_init, 
-                                       Real *integrand, Real *density_cloud, Real *mass_cloud) 
+                                       Real *mass_cloud, Real *integrand_cloud) 
 {
     int xid, yid, zid, n_cells;
     n_cells = nx * ny * nz;
 
-    Real density_stride = 0.0;
-    Real velocity_x_stride = 0.0;
+    Real integrand_stride = 0.0;
     Real mass_stride = 0.0;
-    int counter = 0;
 
     Real density, velocity_x, mass;
 
@@ -74,24 +67,17 @@ __global__ void Cloud_Reduction_Kernel(Real *dev_conserved, int nx, int ny, int 
             density    = dev_conserved[id + n_cells * grid_enum::density];
             velocity_x = dev_conserved[id + n_cells * grid_enum::momentum_x] / density;
             mass       = density * dx * dy * dz;
-            if (density > (1 / 3 * (density_cloud_init / DENSITY_UNIT))) {
-                // printf("inside if statement: %d %e\n", id, mass);
-                counter += 1;
-                density_stride += density;
-                velocity_x_stride += velocity_x;
+            if ((density * DENSITY_UNIT) > (density_cloud_init / 3)) {
                 mass_stride += mass;
+                // (Shin et al. (2008) eq. 9)
+                integrand_stride += velocity_x*density*dx*dy*dz;
             }
         }
     }
-    // __syncthreads();
+    __syncthreads();
 
-    // printf("velocity_x_stride: %d %e\n", threadIdx.x, velocity_x_stride);
-    // printf("mass_stride: %d %e\n", threadIdx.x, mass_stride);
-    printf("counter: %i %i %i --> %i %e\n", gridDim.x, blockIdx.x, threadIdx.x, counter, velocity_x_stride);
-
-    reduction_utilities::Grid_Reduce_Add(density_stride * velocity_x_stride, integrand);
-    reduction_utilities::Grid_Reduce_Add(density_stride, density_cloud);
     reduction_utilities::Grid_Reduce_Add(mass_stride, mass_cloud);
+    reduction_utilities::Grid_Reduce_Add(integrand_stride, integrand_cloud);
 
 }
 
