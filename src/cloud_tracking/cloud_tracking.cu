@@ -19,7 +19,7 @@
   #include "../utils/reduction_utilities.h"
 
 void Cloud_Velocity_Reduction(Real *dev_conserved, int nx, int ny, int nz, Real dx, Real dy, Real dz, int n_ghost,
-                              int n_fields, Real dt, Real gamma, Real density_cloud_init, Real *mass_cloud,
+                              int n_fields, Real density_cloud_init, Real *mass_cloud,
                               Real *integrand_cloud)
 {
   cuda_utilities::AutomaticLaunchParams static const launchParams(Cloud_Reduction_Kernel);
@@ -33,7 +33,7 @@ void Cloud_Velocity_Reduction(Real *dev_conserved, int nx, int ny, int nz, Real 
 
   // .data() gets device vector pointers
   hipLaunchKernelGGL(Cloud_Reduction_Kernel, launchParams.numBlocks, launchParams.threadsPerBlock, 0, 0, dev_conserved,
-                     nx, ny, nz, dx, dy, dz, n_ghost, n_fields, dt, gamma, density_cloud_init, dev_mass_cloud.data(),
+                     nx, ny, nz, dx, dy, dz, n_ghost, n_fields, density_cloud_init, dev_mass_cloud.data(),
                      dev_integrand_cloud.data());
   cudaDeviceSynchronize();
   CudaCheckError();
@@ -46,8 +46,19 @@ void Cloud_Velocity_Reduction(Real *dev_conserved, int nx, int ny, int nz, Real 
   *integrand_cloud = host_integrand_cloud[0];
 }
 
+void Update_Grid_Frame(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields, Real velocity_x_cloud_avg, Real mass_cloud_tot)
+{
+  cuda_utilities::AutomaticLaunchParams static const launchParams(Frame_Shift_Kernel);
+
+  // .data() gets device vector pointers
+  hipLaunchKernelGGL(Frame_Shift_Kernel, launchParams.numBlocks, launchParams.threadsPerBlock, 0, 0, dev_conserved,
+                     nx, ny, nz, n_ghost, n_fields, velocity_x_cloud_avg, mass_cloud_tot);
+  cudaDeviceSynchronize();
+  CudaCheckError();
+}
+
 __global__ void Cloud_Reduction_Kernel(Real *dev_conserved, int nx, int ny, int nz, Real dx, Real dy, Real dz,
-                                       int n_ghost, int n_fields, Real dt, Real gamma, Real density_cloud_init,
+                                       int n_ghost, int n_fields, Real density_cloud_init,
                                        Real *mass_cloud, Real *integrand_cloud)
 {
   int xid, yid, zid, n_cells;
@@ -78,6 +89,43 @@ __global__ void Cloud_Reduction_Kernel(Real *dev_conserved, int nx, int ny, int 
 
   reduction_utilities::Grid_Reduce_Add(mass_stride, mass_cloud);
   reduction_utilities::Grid_Reduce_Add(integrand_stride, integrand_cloud);
+}
+
+__global__ void Frame_Shift_Kernel(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields, Real velocity_x_cloud_avg, Real mass_cloud_tot)
+{
+  int xid, yid, zid, n_cells;
+  n_cells = nx * ny * nz;
+
+  size_t id = threadIdx.x + blockIdx.x * blockDim.x;
+  cuda_utilities::compute3DIndices(id, nx, ny, xid, yid, zid);
+
+  Real density, momentum_x, velocity_x, energy;
+
+  Real energy_kinetic_cloud = 0.5 * mass_cloud_tot * pow(velocity_x_cloud_avg, 2);
+
+  if (xid > n_ghost - 1 && xid < nx - n_ghost && yid > n_ghost - 1 && yid < ny - n_ghost && zid > n_ghost - 1 &&
+  zid < nz - n_ghost) {
+    density                                             = dev_conserved[id + n_cells * grid_enum::density];
+    momentum_x                                          = dev_conserved[id + n_cells * grid_enum::momentum_x];
+    velocity_x                                          = momentum_x / density;
+    energy                                              = dev_conserved[id + n_cells * grid_enum::Energy];
+
+    // Apply frame of reference shift
+    // printf("pxi: %e\n", momentum_x);
+    // printf("pxf: %e\n", (velocity_x - velocity_x_cloud_avg) * density);
+    if (id == 80757) {
+      printf("vx: %e\n", velocity_x * (KPC / TIME_UNIT));
+      printf("vxcl: %e\n", velocity_x_cloud_avg * (KPC / TIME_UNIT));
+      printf("pxi: %e\n", momentum_x);
+      printf("pxf: %e\n", (velocity_x - velocity_x_cloud_avg) * density);
+    }
+    // printf("vx: %e\n", velocity_x);
+    // printf("vxcl: %e\n", velocity_x_cloud_avg);
+    // printf("density: %e\n", density);
+    dev_conserved[id + n_cells * grid_enum::momentum_x] = (velocity_x - velocity_x_cloud_avg) * density;
+    dev_conserved[id + n_cells * grid_enum::Energy]     = energy - energy_kinetic_cloud;
+  }
+  __syncthreads();
 }
 
 #endif  // CLOUD_TRACKING
