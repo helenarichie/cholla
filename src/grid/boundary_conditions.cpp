@@ -535,8 +535,13 @@ void Grid3D::Wind_Boundary()
   z_off = nz_local_start;
 #endif
 
+#ifndef CLOUD_TRACKING
   Wind_Boundary_CUDA(C.device, H.nx, H.ny, H.nz, H.n_cells, H.n_ghost, x_off, y_off, z_off, H.dx, H.dy, H.dz, H.xbound,
                      H.ybound, H.zbound, gama, H.t);
+#else /*CLOUD_TRACKING*/
+  Wind_Boundary_CUDA(C.device, H.nx, H.ny, H.nz, H.n_cells, H.n_ghost, x_off, y_off, z_off, H.dx, H.dy, H.dz, H.xbound,
+                     H.ybound, H.zbound, gama, H.t, H.velocity_x_cloud_avg);
+#endif /*CLOUD_TRACKING*/
 }
 
 /*! \fn void Noh_Boundary()

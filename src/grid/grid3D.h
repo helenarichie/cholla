@@ -216,6 +216,7 @@ struct Header {
 
 #ifdef CLOUD_TRACKING
   Real density_cloud_init;
+  Real velocity_x_cloud_avg;
 #endif  // CLOUD_TRACKING
 
   /*! \var t_wall
