@@ -518,20 +518,20 @@ Real Grid3D::Update_Grid(void)
   max_dti = Calc_Inverse_Timestep();
 
   #ifdef CLOUD_TRACKING
-    Real mass_cloud_tot, integrand_cloud, velocity_x_cloud_avg;
-    // Do the grid-wide reduction to get the sum of rho*vx*V and the total mass for the entire cloud
-    Cloud_Velocity_Reduction(C.device, H.nx, H.ny, H.nz, H.dx, H.dy, H.dz, H.n_ghost, H.n_fields,
-                             H.density_cloud_init, &mass_cloud_tot, &integrand_cloud);
+  Real mass_cloud_tot, integrand_cloud, velocity_x_cloud_avg;
+  // Do the grid-wide reduction to get the sum of rho*vx*V and the total mass for the entire cloud
+  Cloud_Velocity_Reduction(C.device, H.nx, H.ny, H.nz, H.dx, H.dy, H.dz, H.n_ghost, H.n_fields, H.density_cloud_init,
+                           &mass_cloud_tot, &integrand_cloud);
 
-    // Calculate the mass-averaged x-velocity (Shin et al. (2008) eq. 9)
-    velocity_x_cloud_avg = integrand_cloud / mass_cloud_tot;
-    
-    H.velocity_x_cloud_avg = velocity_x_cloud_avg;
+  // Calculate the mass-averaged x-velocity (Shin et al. (2008) eq. 9)
+  velocity_x_cloud_avg = integrand_cloud / mass_cloud_tot;
 
-    chprintf("Average cloud velocity = %e km/s\n", velocity_x_cloud_avg * KPC / TIME_UNIT);
-    chprintf("Mass = %e M_sun\n", mass_cloud_tot);
+  H.velocity_x_cloud_avg += velocity_x_cloud_avg;
 
-    Update_Grid_Frame(C.device, H.nx, H.ny, H.nz, H.n_ghost, H.n_fields, velocity_x_cloud_avg);
+  chprintf("Average cloud velocity = %e km/s\n", velocity_x_cloud_avg * KPC / TIME_UNIT);
+  chprintf("Mass = %e M_sun\n", mass_cloud_tot);
+
+  Update_Grid_Frame(C.device, H.nx, H.ny, H.nz, H.n_ghost, H.n_fields, velocity_x_cloud_avg);
 
   #endif  // CLOUD_TRACKING
 

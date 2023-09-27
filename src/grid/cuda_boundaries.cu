@@ -315,7 +315,7 @@ __global__ void Wind_Boundary_kernel(Real *c_device, int nx, int ny, int nz, int
   Real temperature    = 3e6;   // same value as T_bg in cloud initial condition function (K)
 
   // same values as rho_bg and p_bg in cloud initial condition function
-  density = number_density * mu * MP / DENSITY_UNIT;
+  density  = number_density * mu * MP / DENSITY_UNIT;
   pressure = number_density * KB * temperature / PRESSURE_UNIT;
 
   velocity_x = 1000 * TIME_UNIT / KPC;  // km/s * (cholla unit conversion)
@@ -334,21 +334,22 @@ __global__ void Wind_Boundary_kernel(Real *c_device, int nx, int ny, int nz, int
 
   if (xid <= n_ghost && xid < nx && yid < ny && zid < nz) {
     // set conserved variables
-    c_device[gid + n_cells * grid_enum::density]               = density;
+    c_device[gid + n_cells * grid_enum::density]    = density;
     c_device[gid + n_cells * grid_enum::momentum_x] = velocity_x * density;
     c_device[gid + n_cells * grid_enum::momentum_y] = velocity_y * density;
     c_device[gid + n_cells * grid_enum::momentum_z] = velocity_z * density;
-    c_device[gid + n_cells * grid_enum::Energy] = pressure / (gamma - 1.0) + 0.5 * density * (velocity_x * velocity_x + velocity_y * velocity_y + velocity_z * velocity_z);
-    #ifdef CLOUD_TRACKING
-    if (gid == 151800) {
-      printf("id: %i --> velocity: %e\n", gid, (velocity_x-velocity_x_cloud_avg)*(KPC/TIME_UNIT));
-    }
+    c_device[gid + n_cells * grid_enum::Energy] =
+        pressure / (gamma - 1.0) +
+        0.5 * density * (velocity_x * velocity_x + velocity_y * velocity_y + velocity_z * velocity_z);
+#ifdef CLOUD_TRACKING
     c_device[gid + n_cells * grid_enum::density]    = density;
     c_device[gid + n_cells * grid_enum::momentum_x] = (velocity_x - velocity_x_cloud_avg) * density;
     c_device[gid + n_cells * grid_enum::momentum_y] = velocity_y * density;
     c_device[gid + n_cells * grid_enum::momentum_z] = velocity_z * density;
-    c_device[gid + n_cells * grid_enum::Energy] = pressure / (gamma - 1.0) + 0.5 * density * (pow(velocity_x - velocity_x_cloud_avg, 2) + pow(velocity_y, 2) + pow(velocity_z, 2));
-    #endif // CLOUD_TRACKING
+    c_device[gid + n_cells * grid_enum::Energy] =
+        pressure / (gamma - 1.0) +
+        0.5 * density * (pow(velocity_x - velocity_x_cloud_avg, 2) + pow(velocity_y, 2) + pow(velocity_z, 2));
+#endif  // CLOUD_TRACKING
   }
   __syncthreads();
 }
@@ -524,7 +525,8 @@ __global__ void Noh_Boundary_kernel(Real *c_device, int nx, int ny, int nz, int 
 }
 
 void Wind_Boundary_CUDA(Real *c_device, int nx, int ny, int nz, int n_cells, int n_ghost, int x_off, int y_off,
-                        int z_off, Real dx, Real dy, Real dz, Real xbound, Real ybound, Real zbound, Real gamma, Real t, Real velocity_x_cloud_avg)
+                        int z_off, Real dx, Real dy, Real dz, Real xbound, Real ybound, Real zbound, Real gamma, Real t,
+                        Real velocity_x_cloud_avg)
 {
   // determine the size of the grid to launch
   // need at least as many threads as the largest boundary face

@@ -19,8 +19,7 @@
   #include "../utils/reduction_utilities.h"
 
 void Cloud_Velocity_Reduction(Real *dev_conserved, int nx, int ny, int nz, Real dx, Real dy, Real dz, int n_ghost,
-                              int n_fields, Real density_cloud_init, Real *mass_cloud,
-                              Real *integrand_cloud)
+                              int n_fields, Real density_cloud_init, Real *mass_cloud, Real *integrand_cloud)
 {
   cuda_utilities::AutomaticLaunchParams static const launchParams(Cloud_Reduction_Kernel);
 
@@ -46,20 +45,21 @@ void Cloud_Velocity_Reduction(Real *dev_conserved, int nx, int ny, int nz, Real 
   *integrand_cloud = host_integrand_cloud[0];
 }
 
-void Update_Grid_Frame(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields, Real velocity_x_cloud_avg)
+void Update_Grid_Frame(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields,
+                       Real velocity_x_cloud_avg)
 {
   cuda_utilities::AutomaticLaunchParams static const launchParams(Frame_Shift_Kernel);
 
   // .data() gets device vector pointers
-  hipLaunchKernelGGL(Frame_Shift_Kernel, launchParams.numBlocks, launchParams.threadsPerBlock, 0, 0, dev_conserved,
-                     nx, ny, nz, n_ghost, n_fields, velocity_x_cloud_avg);
+  hipLaunchKernelGGL(Frame_Shift_Kernel, launchParams.numBlocks, launchParams.threadsPerBlock, 0, 0, dev_conserved, nx,
+                     ny, nz, n_ghost, n_fields, velocity_x_cloud_avg);
   cudaDeviceSynchronize();
   CudaCheckError();
 }
 
 __global__ void Cloud_Reduction_Kernel(Real *dev_conserved, int nx, int ny, int nz, Real dx, Real dy, Real dz,
-                                       int n_ghost, int n_fields, Real density_cloud_init,
-                                       Real *mass_cloud, Real *integrand_cloud)
+                                       int n_ghost, int n_fields, Real density_cloud_init, Real *mass_cloud,
+                                       Real *integrand_cloud)
 {
   int xid, yid, zid, n_cells;
   n_cells = nx * ny * nz;
@@ -77,11 +77,11 @@ __global__ void Cloud_Reduction_Kernel(Real *dev_conserved, int nx, int ny, int 
         zid < nz - n_ghost) {
       density    = dev_conserved[id + n_cells * grid_enum::density];
       velocity_x = dev_conserved[id + n_cells * grid_enum::momentum_x] / density;
-      mass       = density * dx * dy * dz;
+      mass       = density;
       if ((density * DENSITY_UNIT) > (density_cloud_init / 3)) {
         mass_stride += mass;
         // (Shin et al. (2008) eq. 9)
-        integrand_stride += velocity_x * density * dx * dy * dz;
+        integrand_stride += velocity_x * density;
       }
     }
   }
@@ -91,7 +91,8 @@ __global__ void Cloud_Reduction_Kernel(Real *dev_conserved, int nx, int ny, int 
   reduction_utilities::Grid_Reduce_Add(integrand_stride, integrand_cloud);
 }
 
-__global__ void Frame_Shift_Kernel(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields, Real velocity_x_cloud_avg)
+__global__ void Frame_Shift_Kernel(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields,
+                                   Real velocity_x_cloud_avg)
 {
   int xid, yid, zid, n_cells;
   n_cells = nx * ny * nz;
@@ -102,34 +103,21 @@ __global__ void Frame_Shift_Kernel(Real *dev_conserved, int nx, int ny, int nz, 
   Real density, momentum_x, velocity_x, velocity_y, velocity_z, energy, energy_internal;
 
   if (xid > n_ghost - 1 && xid < nx - n_ghost && yid > n_ghost - 1 && yid < ny - n_ghost && zid > n_ghost - 1 &&
-  zid < nz - n_ghost) {
-    density                                             = dev_conserved[id + n_cells * grid_enum::density];
-    momentum_x                                          = dev_conserved[id + n_cells * grid_enum::momentum_x];
-    velocity_x                                          = dev_conserved[id + n_cells * grid_enum::momentum_x] / density;
-    velocity_y                                          = dev_conserved[id + n_cells * grid_enum::momentum_y] / density;
-    velocity_z                                          = dev_conserved[id + n_cells * grid_enum::momentum_z] / density;
-    energy                                              = dev_conserved[id + n_cells * grid_enum::Energy];
+      zid < nz - n_ghost) {
+      density    = dev_conserved[id + n_cells * grid_enum::density];
+      momentum_x = dev_conserved[id + n_cells * grid_enum::momentum_x];
+      velocity_x = dev_conserved[id + n_cells * grid_enum::momentum_x] / density;
+      velocity_y = dev_conserved[id + n_cells * grid_enum::momentum_y] / density;
+      velocity_z = dev_conserved[id + n_cells * grid_enum::momentum_z] / density;
+      energy     = dev_conserved[id + n_cells * grid_enum::Energy];
 
-    energy_internal = energy - 0.5 * density * (pow(velocity_x, 2) + pow(velocity_y, 2) + pow(velocity_z, 2));
-
-    // Apply frame of reference shift
-    // printf("pxi: %e\n", momentum_x);
-    // printf("pxf: %e\n", (velocity_x - velocity_x_cloud_avg) * density);
-    if (id == 80757) {
-      printf("vx: %e\n", velocity_x * (KPC / TIME_UNIT));
-      printf("vxcl: %e\n", velocity_x_cloud_avg * (KPC / TIME_UNIT));
-      printf("pxi: %e\n", momentum_x);
-      printf("pxf: %e\n", (velocity_x - velocity_x_cloud_avg) * density);
-      printf("energy_i: %e\n", energy);
-      // printf("cloud_KE: %e\n", energy_kinetic_cloud);
+      energy_internal = energy - 0.5 * density * (pow(velocity_x, 2) + pow(velocity_y, 2) + pow(velocity_z, 2));
+      // Apply frame of reference shift
+      dev_conserved[id + n_cells * grid_enum::momentum_x] = (velocity_x - velocity_x_cloud_avg) * density;
+      dev_conserved[id + n_cells * grid_enum::Energy] =
+          energy_internal +
+          0.5 * density * (pow(velocity_x - velocity_x_cloud_avg, 2) + pow(velocity_y, 2) + pow(velocity_z, 2));
     }
-    // printf("vx: %e\n", velocity_x);
-    // printf("vxcl: %e\n", velocity_x_cloud_avg);
-    // printf("density: %e\n", density);
-    dev_conserved[id + n_cells * grid_enum::momentum_x] = (velocity_x - velocity_x_cloud_avg) * density;
-    dev_conserved[id + n_cells * grid_enum::Energy]     = energy_internal + 0.5 * density * (pow(velocity_x - velocity_x_cloud_avg, 2) + pow(velocity_y, 2) + pow(velocity_z, 2));
-    // there's an internal energy update kernel that does something similar by choosing between the advected energy (sync_energies_3D)
-  }
   __syncthreads();
 }
 

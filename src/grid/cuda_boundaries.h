@@ -17,8 +17,8 @@ void SetGhostCells(Real* c_head, int nx, int ny, int nz, int n_fields, int n_cel
                    int jsize, int ksize, int imin, int jmin, int kmin, int dir);
 
 void Wind_Boundary_CUDA(Real* c_device, int nx, int ny, int nz, int n_cells, int n_ghost, int x_off, int y_off,
-                        int z_off, Real dx, Real dy, Real dz, Real xbound, Real ybound, Real zbound, Real gamma,
-                        Real t, Real velocity_x_cloud_avg=0);
+                        int z_off, Real dx, Real dy, Real dz, Real xbound, Real ybound, Real zbound, Real gamma, Real t,
+                        Real velocity_x_cloud_avg = 0);
 
 void Noh_Boundary_CUDA(Real* c_device, int nx, int ny, int nz, int n_cells, int n_ghost, int x_off, int y_off,
                        int z_off, Real dx, Real dy, Real dz, Real xbound, Real ybound, Real zbound, Real gamma, Real t);
