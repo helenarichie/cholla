@@ -1349,7 +1349,7 @@ void Grid3D::Clouds(struct parameters P)
 #endif
   vx_bg = 1000 * TIME_UNIT / KPC;
   // vx_c  = -200*TIME_UNIT/KPC; // convert from km/s to kpc/kyr
-  vx_cl = 0*TIME_UNIT/KPC;
+  vx_cl = 0 * TIME_UNIT / KPC;
   vy_bg = vy_cl = 0.0;
   vz_bg = vz_cl = 0.0;
   T_bg          = 3e6;

@@ -104,20 +104,20 @@ __global__ void Frame_Shift_Kernel(Real *dev_conserved, int nx, int ny, int nz, 
 
   if (xid > n_ghost - 1 && xid < nx - n_ghost && yid > n_ghost - 1 && yid < ny - n_ghost && zid > n_ghost - 1 &&
       zid < nz - n_ghost) {
-      density    = dev_conserved[id + n_cells * grid_enum::density];
-      momentum_x = dev_conserved[id + n_cells * grid_enum::momentum_x];
-      velocity_x = dev_conserved[id + n_cells * grid_enum::momentum_x] / density;
-      velocity_y = dev_conserved[id + n_cells * grid_enum::momentum_y] / density;
-      velocity_z = dev_conserved[id + n_cells * grid_enum::momentum_z] / density;
-      energy     = dev_conserved[id + n_cells * grid_enum::Energy];
+    density    = dev_conserved[id + n_cells * grid_enum::density];
+    momentum_x = dev_conserved[id + n_cells * grid_enum::momentum_x];
+    velocity_x = dev_conserved[id + n_cells * grid_enum::momentum_x] / density;
+    velocity_y = dev_conserved[id + n_cells * grid_enum::momentum_y] / density;
+    velocity_z = dev_conserved[id + n_cells * grid_enum::momentum_z] / density;
+    energy     = dev_conserved[id + n_cells * grid_enum::Energy];
 
-      energy_internal = energy - 0.5 * density * (pow(velocity_x, 2) + pow(velocity_y, 2) + pow(velocity_z, 2));
-      // Apply frame of reference shift
-      dev_conserved[id + n_cells * grid_enum::momentum_x] = (velocity_x - velocity_x_cloud_avg) * density;
-      dev_conserved[id + n_cells * grid_enum::Energy] =
-          energy_internal +
-          0.5 * density * (pow(velocity_x - velocity_x_cloud_avg, 2) + pow(velocity_y, 2) + pow(velocity_z, 2));
-    }
+    energy_internal = energy - 0.5 * density * (pow(velocity_x, 2) + pow(velocity_y, 2) + pow(velocity_z, 2));
+    // Apply frame of reference shift
+    dev_conserved[id + n_cells * grid_enum::momentum_x] = (velocity_x - velocity_x_cloud_avg) * density;
+    dev_conserved[id + n_cells * grid_enum::Energy] =
+        energy_internal +
+        0.5 * density * (pow(velocity_x - velocity_x_cloud_avg, 2) + pow(velocity_y, 2) + pow(velocity_z, 2));
+  }
   __syncthreads();
 }
 
