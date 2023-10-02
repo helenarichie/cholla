@@ -524,7 +524,11 @@ Real Grid3D::Update_Grid(void)
                            &mass_cloud_tot, &integrand_cloud);
 
   // Calculate the mass-averaged x-velocity (Shin et al. (2008) eq. 9)
-  velocity_x_cloud_avg = integrand_cloud / mass_cloud_tot;
+  if ((integrand_cloud == 0) or (mass_cloud_tot == 0)) {
+    velocity_x_cloud_avg = 0;
+  } else {
+    velocity_x_cloud_avg = integrand_cloud / mass_cloud_tot;
+  }
 
   H.velocity_x_cloud_avg += velocity_x_cloud_avg;
 
