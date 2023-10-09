@@ -304,19 +304,22 @@ __device__ int FindIndex(int ig, int nx, int flag, int face, int n_ghost, Real *
 
 __global__ void Wind_Boundary_kernel(Real *c_device, int nx, int ny, int nz, int n_cells, int n_ghost, int x_off,
                                      int y_off, int z_off, Real dx, Real dy, Real dz, Real xbound, Real ybound,
-                                     Real zbound, Real gamma, Real t, Real velocity_x_cloud_avg)
+                                     Real zbound, Real gamma, Real t, Real velocity_x_cloud_avg, Real density_wind_init)
 {
   int id, xid, yid, zid, gid;
   Real mu = 0.6;
 
-  Real density, velocity_x, velocity_y, velocity_z, pressure;
+  Real density, velocity_x, velocity_y, velocity_z, pressure, number_density;
 
-  Real number_density = 1e-2;  // same value as n_bg in cloud initial condition function (cm^-3)
-  Real temperature    = 3e6;   // same value as T_bg in cloud initial condition function (K)
+  number_density = 1e-2;  // same value as n_bg in cloud initial condition function (cm^-3)
+  Real temperature    = 3e7;   // same value as T_bg in cloud initial condition function (K)
 
   // same values as rho_bg and p_bg in cloud initial condition function
   density  = number_density * mu * MP / DENSITY_UNIT;
   pressure = number_density * KB * temperature / PRESSURE_UNIT;
+  #ifdef CLOUD_TRACKING
+  density = density_wind_init / DENSITY_UNIT;
+  #endif
 
   velocity_x = 1000 * TIME_UNIT / KPC;  // km/s * (cholla unit conversion)
   velocity_y = 0.0;
@@ -526,7 +529,7 @@ __global__ void Noh_Boundary_kernel(Real *c_device, int nx, int ny, int nz, int 
 
 void Wind_Boundary_CUDA(Real *c_device, int nx, int ny, int nz, int n_cells, int n_ghost, int x_off, int y_off,
                         int z_off, Real dx, Real dy, Real dz, Real xbound, Real ybound, Real zbound, Real gamma, Real t,
-                        Real velocity_x_cloud_avg)
+                        Real velocity_x_cloud_avg, Real density_wind_init)
 {
   // determine the size of the grid to launch
   // need at least as many threads as the largest boundary face
@@ -541,7 +544,7 @@ void Wind_Boundary_CUDA(Real *c_device, int nx, int ny, int nz, int n_cells, int
 
   // launch the boundary kernel
   hipLaunchKernelGGL(Wind_Boundary_kernel, dim1dGrid, dim1dBlock, 0, 0, c_device, nx, ny, nz, n_cells, n_ghost, x_off,
-                     y_off, z_off, dx, dy, dz, xbound, ybound, zbound, gamma, t, velocity_x_cloud_avg);
+                     y_off, z_off, dx, dy, dz, xbound, ybound, zbound, gamma, t, velocity_x_cloud_avg, density_wind_init);
 }
 
 void Noh_Boundary_CUDA(Real *c_device, int nx, int ny, int nz, int n_cells, int n_ghost, int x_off, int y_off,

@@ -298,6 +298,7 @@ struct parameters {
 #endif                              // COSMOLOGY
 #ifdef CLOUD_TRACKING
   Real density_cloud_init;
+  Real density_wind_init;
 #endif
 #ifdef TILED_INITIAL_CONDITIONS
   Real tile_length;

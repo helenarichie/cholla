@@ -1333,19 +1333,21 @@ void Grid3D::Clouds(struct parameters P)
 
   // single centered cloud setup
   for (int nn = 0; nn < N_cl; nn++) {
-    cl_pos[nn][0] = 0.1 * H.xdglobal;
+    cl_pos[nn][0] = 0.5 * H.xdglobal;
     cl_pos[nn][1] = 0.5 * H.ydglobal;
     cl_pos[nn][2] = 0.5 * H.zdglobal;
     printf("Cloud positions: %f %f %f\n", cl_pos[nn][0], cl_pos[nn][1], cl_pos[nn][2]);
   }
 
   n_bg   = 1.0e-2;
-  n_cl   = 1.0;
+  n_cl   = 1;
   rho_bg = n_bg * mu * MP / DENSITY_UNIT;
   rho_cl = n_cl * mu * MP / DENSITY_UNIT;
 #ifdef CLOUD_TRACKING
   rho_cl = P.density_cloud_init / DENSITY_UNIT;
+  rho_bg = P.density_wind_init / DENSITY_UNIT;
   printf("Cloud initial density: %e\n", P.density_cloud_init);
+  printf("Wind initial density: %e\n", P.density_wind_init);
 #endif
   vx_bg = 1000 * TIME_UNIT / KPC;
   // vx_c  = -200*TIME_UNIT/KPC; // convert from km/s to kpc/kyr

@@ -10,7 +10,7 @@ DFLAGS    += -DCUDA
 DFLAGS    += -DMPI_CHOLLA
 DFLAGS    += -DBLOCK
 DFLAGS    += -DPRECISION=2
-DFLAGS    += -DPPMC
+DFLAGS    += -DPPMP
 DFLAGS    += -DHLLC
 
 # DFLAGS    += -DDE
@@ -29,6 +29,8 @@ DFLAGS += -DSCALAR
 
 # Define dust macro
 DFLAGS += -DDUST
+
+DFLAGS += -DCLOUD_TRACKING
 
 # Apply the cooling in the GPU from precomputed tables
 DFLAGS += -DCOOLING_GPU

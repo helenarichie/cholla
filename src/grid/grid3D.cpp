@@ -160,6 +160,7 @@ void Grid3D::Initialize(struct parameters *P)
 
 #ifdef CLOUD_TRACKING
   H.density_cloud_init = P->density_cloud_init;
+  H.density_wind_init = P->density_wind_init;
 #endif
 
 #ifndef MPI_CHOLLA
@@ -518,23 +519,59 @@ Real Grid3D::Update_Grid(void)
   max_dti = Calc_Inverse_Timestep();
 
   #ifdef CLOUD_TRACKING
-  Real mass_cloud_tot, integrand_cloud, velocity_x_cloud_avg;
+  Real mass_cloud, integrand_cloud, velocity_x_cloud_avg, mass_cloud_tot;
   // Do the grid-wide reduction to get the sum of rho*vx*V and the total mass for the entire cloud
   Cloud_Velocity_Reduction(C.device, H.nx, H.ny, H.nz, H.dx, H.dy, H.dz, H.n_ghost, H.n_fields, H.density_cloud_init,
-                           &mass_cloud_tot, &integrand_cloud);
+                           H.density_wind_init, &mass_cloud, &integrand_cloud);
 
-  // Calculate the mass-averaged x-velocity (Shin et al. (2008) eq. 9)
-  if ((integrand_cloud == 0) or (mass_cloud_tot == 0)) {
-    velocity_x_cloud_avg = 0;
-  } else {
-    velocity_x_cloud_avg = integrand_cloud / mass_cloud_tot;
+    #ifdef MPI_CHOLLA
+  // Perform the MPI sum reduction
+
+  // Initialize buffer for root to hold each process's partial integrands and masses
+  Real *integrands_cloud = NULL;
+  Real *masses_cloud     = NULL;
+  if (procID == root) {
+    integrands_cloud = (Real *)malloc(sizeof(Real) * nproc);
+    masses_cloud     = (Real *)malloc(sizeof(Real) * nproc);
   }
 
+  // Gather each process's integrand and mass into buffer
+  MPI_Gather(&integrand_cloud, 1, MPI_CHREAL, integrands_cloud, 1, MPI_CHREAL, root, world);
+  MPI_Gather(&mass_cloud, 1, MPI_CHREAL, masses_cloud, 1, MPI_CHREAL, root, world);
+
+  // Root process gets the total mass and integrand and calculates the mass-weighted average velocity
+  if (procID == root) {
+    Real root_integrand_cloud = 0;
+    Real root_mass_cloud      = 0;
+    for (int i = 0; i < nproc; i++) {
+      root_integrand_cloud += integrands_cloud[i];
+      root_mass_cloud += masses_cloud[i];
+    }
+    // Calculate the mass-averaged x-velocity (Shin et al. (2008) eq. 9)
+    if ((root_integrand_cloud == 0) or (root_mass_cloud == 0)) {
+      velocity_x_cloud_avg = 0;
+    } else {
+      velocity_x_cloud_avg = root_integrand_cloud / root_mass_cloud;
+    }
+    mass_cloud_tot = root_mass_cloud;
+  }
+
+  // Send the total values to all processes
+  MPI_Bcast(&velocity_x_cloud_avg, 1, MPI_CHREAL, root, world);
+  MPI_Bcast(&mass_cloud_tot, 1, MPI_CHREAL, root, world);
+
+  free(integrands_cloud);
+  free(masses_cloud);
+
+    #endif  // MPI_CHOLLA
+
+  // Update the cumulative reference frame shift
   H.velocity_x_cloud_avg += velocity_x_cloud_avg;
 
   chprintf("Average cloud velocity = %e km/s\n", velocity_x_cloud_avg * KPC / TIME_UNIT);
   chprintf("Mass = %e M_sun\n", mass_cloud_tot);
 
+  // Subtract this timestep's reference frame shift off from the entire grid
   Update_Grid_Frame(C.device, H.nx, H.ny, H.nz, H.n_ghost, H.n_fields, velocity_x_cloud_avg);
 
   #endif  // CLOUD_TRACKING

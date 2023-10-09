@@ -19,7 +19,8 @@
   #include "../utils/reduction_utilities.h"
 
 void Cloud_Velocity_Reduction(Real *dev_conserved, int nx, int ny, int nz, Real dx, Real dy, Real dz, int n_ghost,
-                              int n_fields, Real density_cloud_init, Real *mass_cloud, Real *integrand_cloud)
+                              int n_fields, Real density_cloud_init, Real density_wind_init, Real *mass_cloud, 
+                              Real *integrand_cloud)
 {
   cuda_utilities::AutomaticLaunchParams static const launchParams(Cloud_Reduction_Kernel);
 
@@ -32,7 +33,7 @@ void Cloud_Velocity_Reduction(Real *dev_conserved, int nx, int ny, int nz, Real 
 
   // .data() gets device vector pointers
   hipLaunchKernelGGL(Cloud_Reduction_Kernel, launchParams.numBlocks, launchParams.threadsPerBlock, 0, 0, dev_conserved,
-                     nx, ny, nz, dx, dy, dz, n_ghost, n_fields, density_cloud_init, dev_mass_cloud.data(),
+                     nx, ny, nz, dx, dy, dz, n_ghost, n_fields, density_cloud_init, density_wind_init, dev_mass_cloud.data(),
                      dev_integrand_cloud.data());
   cudaDeviceSynchronize();
   CudaCheckError();
@@ -58,8 +59,8 @@ void Update_Grid_Frame(Real *dev_conserved, int nx, int ny, int nz, int n_ghost,
 }
 
 __global__ void Cloud_Reduction_Kernel(Real *dev_conserved, int nx, int ny, int nz, Real dx, Real dy, Real dz,
-                                       int n_ghost, int n_fields, Real density_cloud_init, Real *mass_cloud,
-                                       Real *integrand_cloud)
+                                       int n_ghost, int n_fields, Real density_cloud_init, Real density_wind_init,
+                                       Real *mass_cloud, Real *integrand_cloud)
 {
   int xid, yid, zid, n_cells;
   n_cells = nx * ny * nz;
@@ -78,7 +79,8 @@ __global__ void Cloud_Reduction_Kernel(Real *dev_conserved, int nx, int ny, int 
       density    = dev_conserved[id + n_cells * grid_enum::density];
       velocity_x = dev_conserved[id + n_cells * grid_enum::momentum_x] / density;
       mass       = density * dx * dy * dz;
-      if ((density * DENSITY_UNIT) >= (density_cloud_init / 15)) {
+      //printf("%e\n", pow(density_cloud_init*density_wind_init, 0.5));
+      if ((density * DENSITY_UNIT) >= (pow(density_cloud_init*density_wind_init, 0.5))) {
         mass_stride += mass;
         // (Shin et al. (2008) eq. 9)
         integrand_stride += velocity_x * density * dx * dy * dz;
@@ -100,7 +102,7 @@ __global__ void Frame_Shift_Kernel(Real *dev_conserved, int nx, int ny, int nz, 
   size_t id = threadIdx.x + blockIdx.x * blockDim.x;
   cuda_utilities::compute3DIndices(id, nx, ny, xid, yid, zid);
 
-  Real density, momentum_x, velocity_x, velocity_y, velocity_z, energy, energy_internal;
+  Real density, velocity_x, velocity_y, velocity_z, energy, energy_internal;
 
   for (size_t id = threadIdx.x + blockIdx.x * blockDim.x; id < n_cells; id += blockDim.x * gridDim.x) {
     cuda_utilities::compute3DIndices(id, nx, ny, xid, yid, zid);
@@ -108,7 +110,6 @@ __global__ void Frame_Shift_Kernel(Real *dev_conserved, int nx, int ny, int nz, 
     if (xid > n_ghost - 1 && xid < nx - n_ghost && yid > n_ghost - 1 && yid < ny - n_ghost && zid > n_ghost - 1 &&
         zid < nz - n_ghost) {
       density    = dev_conserved[id + n_cells * grid_enum::density];
-      momentum_x = dev_conserved[id + n_cells * grid_enum::momentum_x];
       velocity_x = dev_conserved[id + n_cells * grid_enum::momentum_x] / density;
       velocity_y = dev_conserved[id + n_cells * grid_enum::momentum_y] / density;
       velocity_z = dev_conserved[id + n_cells * grid_enum::momentum_z] / density;

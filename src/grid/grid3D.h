@@ -216,6 +216,7 @@ struct Header {
 
 #ifdef CLOUD_TRACKING
   Real density_cloud_init;
+  Real density_wind_init;
   Real velocity_x_cloud_avg = 0;
 #endif  // CLOUD_TRACKING
 
