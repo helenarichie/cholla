@@ -160,7 +160,7 @@ void Grid3D::Initialize(struct parameters *P)
 
 #ifdef CLOUD_TRACKING
   H.density_cloud_init = P->density_cloud_init;
-  H.density_wind_init = P->density_wind_init;
+  H.density_wind_init  = P->density_wind_init;
 #endif
 
 #ifndef MPI_CHOLLA

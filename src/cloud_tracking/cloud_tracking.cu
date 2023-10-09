@@ -19,7 +19,7 @@
   #include "../utils/reduction_utilities.h"
 
 void Cloud_Velocity_Reduction(Real *dev_conserved, int nx, int ny, int nz, Real dx, Real dy, Real dz, int n_ghost,
-                              int n_fields, Real density_cloud_init, Real density_wind_init, Real *mass_cloud, 
+                              int n_fields, Real density_cloud_init, Real density_wind_init, Real *mass_cloud,
                               Real *integrand_cloud)
 {
   cuda_utilities::AutomaticLaunchParams static const launchParams(Cloud_Reduction_Kernel);
@@ -33,8 +33,8 @@ void Cloud_Velocity_Reduction(Real *dev_conserved, int nx, int ny, int nz, Real 
 
   // .data() gets device vector pointers
   hipLaunchKernelGGL(Cloud_Reduction_Kernel, launchParams.numBlocks, launchParams.threadsPerBlock, 0, 0, dev_conserved,
-                     nx, ny, nz, dx, dy, dz, n_ghost, n_fields, density_cloud_init, density_wind_init, dev_mass_cloud.data(),
-                     dev_integrand_cloud.data());
+                     nx, ny, nz, dx, dy, dz, n_ghost, n_fields, density_cloud_init, density_wind_init,
+                     dev_mass_cloud.data(), dev_integrand_cloud.data());
   cudaDeviceSynchronize();
   CudaCheckError();
 
@@ -79,7 +79,7 @@ __global__ void Cloud_Reduction_Kernel(Real *dev_conserved, int nx, int ny, int 
       density    = dev_conserved[id + n_cells * grid_enum::density];
       velocity_x = dev_conserved[id + n_cells * grid_enum::momentum_x] / density;
       mass       = density * dx * dy * dz;
-      if ((density * DENSITY_UNIT) >= (pow(density_cloud_init*density_wind_init, 0.5))) {
+      if ((density * DENSITY_UNIT) >= (pow(density_cloud_init * density_wind_init, 0.5))) {
         mass_stride += mass;
         // (Shin et al. (2008) eq. 9)
         integrand_stride += velocity_x * density * dx * dy * dz;
