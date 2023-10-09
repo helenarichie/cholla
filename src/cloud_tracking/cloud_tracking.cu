@@ -79,7 +79,6 @@ __global__ void Cloud_Reduction_Kernel(Real *dev_conserved, int nx, int ny, int 
       density    = dev_conserved[id + n_cells * grid_enum::density];
       velocity_x = dev_conserved[id + n_cells * grid_enum::momentum_x] / density;
       mass       = density * dx * dy * dz;
-      //printf("%e\n", pow(density_cloud_init*density_wind_init, 0.5));
       if ((density * DENSITY_UNIT) >= (pow(density_cloud_init*density_wind_init, 0.5))) {
         mass_stride += mass;
         // (Shin et al. (2008) eq. 9)
