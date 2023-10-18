@@ -79,7 +79,8 @@ __global__ void Cloud_Reduction_Kernel(Real *dev_conserved, int nx, int ny, int 
       density    = dev_conserved[id + n_cells * grid_enum::density];
       velocity_x = dev_conserved[id + n_cells * grid_enum::momentum_x] / density;
       mass       = density * dx * dy * dz;
-      if ((density * DENSITY_UNIT) >= (pow(density_cloud_init * density_wind_init, 0.5))) {
+      // if ((density * DENSITY_UNIT) >= (pow(density_cloud_init * density_wind_init, 0.5))) {
+      if ((density * DENSITY_UNIT) >= (density_cloud_init / 3)) {
         mass_stride += mass;
         // (Shin et al. (2008) eq. 9)
         integrand_stride += velocity_x * density * dx * dy * dz;
@@ -97,9 +98,6 @@ __global__ void Frame_Shift_Kernel(Real *dev_conserved, int nx, int ny, int nz, 
 {
   int xid, yid, zid, n_cells;
   n_cells = nx * ny * nz;
-
-  size_t id = threadIdx.x + blockIdx.x * blockDim.x;
-  cuda_utilities::compute3DIndices(id, nx, ny, xid, yid, zid);
 
   Real density, velocity_x, velocity_y, velocity_z, energy, energy_internal;
 

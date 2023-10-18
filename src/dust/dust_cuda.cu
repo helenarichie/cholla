@@ -128,7 +128,7 @@ __global__ void Dust_Kernel(Real *dev_conserved, int nx, int ny, int nz, int n_g
 // McKinnon et al. (2017) sputtering timescale
 __device__ __host__ Real Calc_Sputtering_Timescale(Real number_density, Real temperature)
 {
-  Real grain_radius  = 1;          // dust grain size in units of 0.1 micrometers
+  Real grain_radius  = .01;          // dust grain size in units of 0.1 micrometers
   Real temperature_0 = 2e6;        // temp above which the sputtering rate is ~constant in K
   Real omega         = 2.5;        // controls the low-temperature scaling of the sputtering rate
   Real A             = 5.3618e15;  // 0.17 Gyr in s

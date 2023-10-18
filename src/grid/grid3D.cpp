@@ -155,7 +155,7 @@ void Grid3D::Initialize(struct parameters *P)
   C_cfl = 0.3;
 
 #ifdef AVERAGE_SLOW_CELLS
-  H.min_dt_slow = 1e-100;  // Initialize the minumum dt to a tiny number
+  H.min_dt_slow = 1e-5;  // Initialize the minumum dt to a tiny number
 #endif                     // AVERAGE_SLOW_CELLS
 
 #ifdef CLOUD_TRACKING
@@ -524,6 +524,8 @@ Real Grid3D::Update_Grid(void)
   Cloud_Velocity_Reduction(C.device, H.nx, H.ny, H.nz, H.dx, H.dy, H.dz, H.n_ghost, H.n_fields, H.density_cloud_init,
                            H.density_wind_init, &mass_cloud, &integrand_cloud);
 
+  printf("before mpi: %e\n", integrand_cloud/mass_cloud);
+
     #ifdef MPI_CHOLLA
   // Perform the MPI sum reduction
 
@@ -544,6 +546,7 @@ Real Grid3D::Update_Grid(void)
     Real root_integrand_cloud = 0;
     Real root_mass_cloud      = 0;
     for (int i = 0; i < nproc; i++) {
+      printf("different velocities: %e\n", integrands_cloud[i]/masses_cloud[i]);
       root_integrand_cloud += integrands_cloud[i];
       root_mass_cloud += masses_cloud[i];
     }
@@ -567,6 +570,8 @@ Real Grid3D::Update_Grid(void)
 
   // Update the cumulative reference frame shift
   H.velocity_x_cloud_avg += velocity_x_cloud_avg;
+
+  // printf("cumulative velocity: %e\n", H.velocity_x_cloud_avg);
 
   chprintf("Average cloud velocity = %e km/s\n", velocity_x_cloud_avg * KPC / TIME_UNIT);
   chprintf("Mass = %e M_sun\n", mass_cloud_tot);

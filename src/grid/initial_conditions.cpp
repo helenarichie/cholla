@@ -1333,7 +1333,7 @@ void Grid3D::Clouds(struct parameters P)
 
   // single centered cloud setup
   for (int nn = 0; nn < N_cl; nn++) {
-    cl_pos[nn][0] = 0.5 * H.xdglobal;
+    cl_pos[nn][0] = 0.075 * H.xdglobal;
     cl_pos[nn][1] = 0.5 * H.ydglobal;
     cl_pos[nn][2] = 0.5 * H.zdglobal;
     printf("Cloud positions: %f %f %f\n", cl_pos[nn][0], cl_pos[nn][1], cl_pos[nn][2]);
@@ -1395,10 +1395,8 @@ void Grid3D::Clouds(struct parameters P)
 #ifdef DE
         C.GasEnergy[id] = p_bg / (gama - 1.0);
 #endif
-#ifdef SCALAR
-  #ifdef DUST
+#ifdef DUST
         C.host[id + H.n_cells * grid_enum::dust_density] = 0.0;
-  #endif
 #endif
         // add clouds
         for (int nn = 0; nn < N_cl; nn++) {
