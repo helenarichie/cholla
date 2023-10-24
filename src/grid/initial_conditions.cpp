@@ -1318,7 +1318,7 @@ void Grid3D::Clouds(struct parameters P)
   Real p_bg, p_cl;       // background and cloud pressure
   Real mu   = 0.6;       // mean atomic weight
   int N_cl  = 1;         // number of clouds
-  Real R_cl = 0.005;     // cloud radius in code units (kpc)
+  Real R_cl = 0.1;     // cloud radius in code units (kpc)
   Real cl_pos[N_cl][3];  // array of cloud positions
   Real r;
 
@@ -1333,14 +1333,14 @@ void Grid3D::Clouds(struct parameters P)
 
   // single centered cloud setup
   for (int nn = 0; nn < N_cl; nn++) {
-    cl_pos[nn][0] = 0.075 * H.xdglobal;
+    cl_pos[nn][0] = 0.2 * H.xdglobal;
     cl_pos[nn][1] = 0.5 * H.ydglobal;
     cl_pos[nn][2] = 0.5 * H.zdglobal;
     printf("Cloud positions: %f %f %f\n", cl_pos[nn][0], cl_pos[nn][1], cl_pos[nn][2]);
   }
 
   n_bg   = 1.0e-2;
-  n_cl   = 1;
+  n_cl   = 10;
   rho_bg = n_bg * mu * MP / DENSITY_UNIT;
   rho_cl = n_cl * mu * MP / DENSITY_UNIT;
 #ifdef CLOUD_TRACKING
