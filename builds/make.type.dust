@@ -30,7 +30,7 @@ DFLAGS += -DSCALAR
 # Define dust macro
 DFLAGS += -DDUST
 
-#DFLAGS += -DCLOUD_TRACKING
+DFLAGS += -DCLOUD_TRACKING
 
 # Apply the cooling in the GPU from precomputed tables
 DFLAGS += -DCOOLING_GPU

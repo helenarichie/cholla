@@ -353,6 +353,9 @@ __global__ void Wind_Boundary_kernel(Real *c_device, int nx, int ny, int nz, int
         pressure / (gamma - 1.0) +
         0.5 * density * (pow(velocity_x - velocity_x_cloud_avg, 2) + pow(velocity_y, 2) + pow(velocity_z, 2));
 #endif  // CLOUD_TRACKING
+#ifdef DUST
+    c_device[gid + n_cells * grid_enum::dust_density] = 0.0;
+#endif
   }
   __syncthreads();
 }

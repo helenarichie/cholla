@@ -524,13 +524,20 @@ Real Grid3D::Update_Grid(void)
   Cloud_Velocity_Reduction(C.device, H.nx, H.ny, H.nz, H.dx, H.dy, H.dz, H.n_ghost, H.n_fields, H.density_cloud_init,
                            H.density_wind_init, &mass_cloud, &integrand_cloud);
 
-  printf("before mpi: %e\n", integrand_cloud/mass_cloud);
+  //printf("before mpi: %e\n", integrand_cloud/mass_cloud);
 
     #ifdef MPI_CHOLLA
+
+  Real integrand_reduced;
+  Real mass_reduced;
+
+  MPI_Allreduce(&integrand_cloud, &integrand_reduced, 1, MPI_CHREAL, MPI_SUM, world);
+  MPI_Allreduce(&mass_cloud, &mass_reduced, 1, MPI_CHREAL, MPI_SUM, world);
+  
   // Perform the MPI sum reduction
 
   // Initialize buffer for root to hold each process's partial integrands and masses
-  Real *integrands_cloud = NULL;
+  /*Real *integrands_cloud = NULL;
   Real *masses_cloud     = NULL;
   if (procID == root) {
     integrands_cloud = (Real *)malloc(sizeof(Real) * nproc);
@@ -565,8 +572,16 @@ Real Grid3D::Update_Grid(void)
 
   free(integrands_cloud);
   free(masses_cloud);
+  */ 
 
     #endif  // MPI_CHOLLA
+
+  // Calculate the mass-averaged x-velocity (Shin et al. (2008) eq. 9)
+  if ((integrand_reduced == 0) or (mass_reduced == 0)) {
+    velocity_x_cloud_avg = 0;
+  } else {
+    velocity_x_cloud_avg = integrand_reduced / mass_reduced;
+  }
 
   // Update the cumulative reference frame shift
   H.velocity_x_cloud_avg += velocity_x_cloud_avg;
@@ -574,7 +589,7 @@ Real Grid3D::Update_Grid(void)
   // printf("cumulative velocity: %e\n", H.velocity_x_cloud_avg);
 
   chprintf("Average cloud velocity = %e km/s\n", velocity_x_cloud_avg * KPC / TIME_UNIT);
-  chprintf("Mass = %e M_sun\n", mass_cloud_tot);
+  chprintf("Mass = %e M_sun\n", mass_reduced);
 
   // Subtract this timestep's reference frame shift off from the entire grid
   Update_Grid_Frame(C.device, H.nx, H.ny, H.nz, H.n_ghost, H.n_fields, velocity_x_cloud_avg);
