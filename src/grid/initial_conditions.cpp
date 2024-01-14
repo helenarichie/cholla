@@ -68,7 +68,7 @@ void Grid3D::Set_Initial_Conditions(Parameters P)
   } else if (strcmp(P.init, "Spherical_Overdensity_3D") == 0) {
     Spherical_Overdensity_3D();
   } else if (strcmp(P.init, "Clouds") == 0) {
-    Clouds();
+    Clouds(P);
   } else if (strcmp(P.init, "Read_Grid") == 0) {
 #ifndef ONLY_PARTICLES
     Read_Grid(P);
@@ -1310,12 +1310,12 @@ void Grid3D::Spherical_Overdensity_3D()
 
 /*! \fn void Clouds()
  *  \brief Bunch of clouds. */
-void Grid3D::Clouds()
+void Grid3D::Clouds(struct Parameters P)
 {
   int i, j, k, id;
   int istart, jstart, kstart, iend, jend, kend;
   Real x_pos, y_pos, z_pos;
-  Real n_bg, n_cl;      // background and cloud number density
+  Real n_bg;            // background and cloud number density
   Real rho_bg, rho_cl;  // background and cloud density
   Real vx_bg, vx_cl;    // background and cloud velocity
   Real vy_bg, vy_cl;
@@ -1324,7 +1324,7 @@ void Grid3D::Clouds()
   Real p_bg, p_cl;       // background and cloud pressure
   Real mu   = 0.6;       // mean atomic weight
   int N_cl  = 1;         // number of clouds
-  Real R_cl = 2.5;       // cloud radius in code units (kpc)
+  Real R_cl = 0.001;     // cloud radius in code units (kpc)
   Real cl_pos[N_cl][3];  // array of cloud positions
   Real r;
 
@@ -1339,17 +1339,19 @@ void Grid3D::Clouds()
 
   // single centered cloud setup
   for (int nn = 0; nn < N_cl; nn++) {
-    cl_pos[nn][0] = 0.5 * H.xdglobal;
+    cl_pos[nn][0] = 0.1 * H.xdglobal;
     cl_pos[nn][1] = 0.5 * H.ydglobal;
     cl_pos[nn][2] = 0.5 * H.zdglobal;
     printf("Cloud positions: %f %f %f\n", cl_pos[nn][0], cl_pos[nn][1], cl_pos[nn][2]);
   }
 
-  n_bg   = 1.68e-4;
-  n_cl   = 5.4e-2;
+  n_bg   = 1e-2;
+  rho_cl = 1e-24 / DENSITY_UNIT;
+#ifdef CLOUD_TRACKING
+  rho_cl = P.density_cloud_init / DENSITY_UNIT;
+#endif
   rho_bg = n_bg * mu * MP / DENSITY_UNIT;
-  rho_cl = n_cl * mu * MP / DENSITY_UNIT;
-  vx_bg  = 0.0;
+  vx_bg  = 1000 * TIME_UNIT / KPC;
   // vx_c  = -200*TIME_UNIT/KPC; // convert from km/s to kpc/kyr
   vx_cl = 0.0;
   vy_bg = vy_cl = 0.0;

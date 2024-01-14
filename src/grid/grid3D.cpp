@@ -29,6 +29,9 @@
 #ifdef CLOUDY_COOL
   #include "../cooling/load_cloudy_texture.h"  // provides Load_Cuda_Textures and Free_Cuda_Textures
 #endif
+#ifdef CLOUD_TRACKING
+  #include "../cloud_tracking/cloud_tracking.h"
+#endif
 
 #ifdef PARALLEL_OMP
   #include "../utils/parallel_omp.h"
@@ -464,6 +467,26 @@ void Grid3D::Execute_Hydro_Integrator(void)
   } else if (H.nx > 1 && H.ny > 1 && H.nz > 1)  // 3D
   {
 #ifdef CUDA
+  #ifdef CLOUD_TRACKING
+    // ==Subtract average cloud velocity from grid==
+    // Variables to store the mass-averaged cloud velocity and total cloud mass
+    Real velocity_cloud;
+    Real integrand, density_cloud_tot, mass_cloud_tot;
+    Real density;
+    // Do the grid-wide reduction to get the sum of rho*vx and total density for the entire cloud
+    Cloud_Frame_Update(C.device, H.nx, H.ny, H.nz, H.dx, H.dy, H.dz, H.n_ghost, H.n_fields, H.dt, gama,
+                       H.density_cloud_init, &integrand, &density_cloud_tot, &mass_cloud_tot);
+
+    // chprintf("Cloud mass = %e\n", mass_cloud_tot);
+    velocity_cloud = integrand / mass_cloud_tot;
+    Update_Grid_Velocities(C.device, H.nx, H.ny, H.nz, H.n_ghost, H.n_fields, H.dt, gama, velocity_cloud,
+                           density_cloud_tot, mass_cloud_tot);
+    // chprintf("Cloud frame update = %d\n", state);
+    chprintf("Average cloud velocity = %e\n", velocity_cloud);
+    chprintf("Integrand = %e\n", integrand);
+    chprintf("Mass cloud = %e\n", mass_cloud_tot);
+  #endif  // CLOUD_TRACKING
+
   #ifdef VL
     VL_Algorithm_3D_CUDA(C.device, C.d_Grav_potential, H.nx, H.ny, H.nz, x_off, y_off, z_off, H.n_ghost, H.dx, H.dy,
                          H.dz, H.xbound, H.ybound, H.zbound, H.dt, H.n_fields, H.custom_grav, density_floor, U_floor,
@@ -527,6 +550,24 @@ Real Grid3D::Update_Hydro_Grid()
   Dust_Update(C.device, H.nx, H.ny, H.nz, H.n_ghost, H.n_fields, H.dt, gama);
   #endif  // DUST
 
+  #ifdef CLOUD_TRACKING
+  // ==Subtract average cloud velocity from grid==
+  // Variables to store the mass-averaged cloud velocity and total cloud mass
+  Real velocity_cloud;
+  Real integrand, density_cloud_tot, mass_cloud_tot;
+  Real density;
+  // Do the grid-wide reduction to get the sum of rho*vx and total density for the entire cloud
+  Cloud_Frame_Update(C.device, H.nx, H.ny, H.nz, H.dx, H.dy, H.dz, H.n_ghost, H.n_fields, H.dt, gama,
+                     H.density_cloud_init, &integrand, &density_cloud_tot, &mass_cloud_tot);
+  velocity_cloud = integrand / mass_cloud_tot;
+  Update_Grid_Velocities(C.device, H.nx, H.ny, H.nz, H.n_ghost, H.n_fields, H.dt, gama, velocity_cloud,
+                         density_cloud_tot, mass_cloud_tot);
+  // chprintf("Cloud frame update = %d\n", state);
+  chprintf("Average cloud velocity = %e\n", velocity_cloud);
+  chprintf("Integrand = %e\n", integrand);
+  chprintf("Mass cloud = %e\n", mass_cloud_tot);
+  #endif  // CLOUD_TRACKING
+
 #endif  // CUDA
 
 #ifdef CHEMISTRY_GPU
@@ -536,6 +577,7 @@ Real Grid3D::Update_Hydro_Grid()
   Timer.Chemistry.RecordTime(Chem.H.runtime_chemistry_step);
   non_hydro_elapsed_time += Chem.H.runtime_chemistry_step;
   #endif
+
   C.HI_density    = &C.host[H.n_cells * grid_enum::HI_density];
   C.HII_density   = &C.host[H.n_cells * grid_enum::HII_density];
   C.HeI_density   = &C.host[H.n_cells * grid_enum::HeI_density];

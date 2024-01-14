@@ -101,10 +101,11 @@ char *Trim(char *s)
 }
 
 // NOLINTNEXTLINE(cert-err58-cpp)
-const std::set<const char *> optionalParams = {
-    "flag_delta",   "ddelta_dt",   "n_delta",  "Lz",       "Lx",      "phi",     "theta",
-    "delta",        "nzr",         "nxr",      "H0",       "Omega_M", "Omega_L", "Init_redshift",
-    "End_redshift", "tile_length", "n_proc_x", "n_proc_y", "n_proc_z"};
+const std::set<const char *> optionalParams = {"flag_delta", "ddelta_dt",     "n_delta",      "Lz",
+                                               "Lx",         "phi",           "theta",        "delta",
+                                               "nzr",        "nxr",           "H0",           "Omega_M",
+                                               "Omega_L",    "Init_redshift", "End_redshift", "tile_length",
+                                               "n_proc_x",   "n_proc_y",      "n_proc_z",     "density_cloud_init"};
 
 /*! \fn int Is_Param_Valid(char *name);
  * \brief Verifies that a param is valid (even if not needed).  Avoids
@@ -453,6 +454,10 @@ void Parse_Param(char *name, char *value, struct Parameters *parms)
   } else if (strcmp(name, "skewersdir") == 0) {
     strncpy(parms->skewersdir, value, MAXLEN);
   #endif
+#endif
+#ifdef CLOUD_TRACKING
+  } else if (strcmp(name, "density_cloud_init") == 0) {
+    parms->density_cloud_init = atof(value);
 #endif
   } else if (!Is_Param_Valid(name)) {
     chprintf("WARNING: %s/%s: Unknown parameter/value pair!\n", name, value);

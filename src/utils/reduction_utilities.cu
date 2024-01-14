@@ -11,6 +11,7 @@
 // External Includes
 
 // Local Includes
+#include "../utils/DeviceVector.h"
 #include "../utils/reduction_utilities.h"
 
 #ifdef CUDA
@@ -37,6 +38,28 @@ __global__ void kernelReduceMax(Real* in, Real* out, size_t N)
   // then launching a new one or by using cooperative groups. If this
   // becomes a need it can be added later
   gridReduceMax(maxVal, out);
+}
+// =====================================================================
+
+// =====================================================================
+__global__ void Kernel_Reduce_Add(Real* in, Real* out, size_t N)
+{
+  __shared__ Real sum_stride[TPB]; // array shared between each block
+ 
+  for (int i = 0; i < TPB; i++) {
+    sum_stride[i] = 0;
+  }
+
+// Grid stride loop to read global array into shared block-wide array
+  for (size_t i = blockIdx.x * blockDim.x + threadIdx.x; i < N; i += blockDim.x * gridDim.x) {
+    sum_stride[threadIdx.x] += in[i];
+  }
+  __syncthreads();
+
+  Grid_Reduction_Add(sum_stride[threadIdx.x], out);
+  if (threadIdx.x == 0) {
+    printf("kernel: %f\n", *out);
+  }
 }
 // =====================================================================
 }  // namespace reduction_utilities
