@@ -56,7 +56,7 @@ void Cloud_Frame_Update(Real *dev_conserved, int nx, int ny, int nz, Real dx, Re
   hipLaunchKernelGGL(Cloud_Tracking_Kernel, launchParams.numBlocks, launchParams.threadsPerBlock, 0, 0, dev_conserved,
                      nx, ny, nz, dx, dy, dz, n_ghost, n_fields, dt, gamma, density_cloud_init, integrand_cloud.data(),
                      density_cloud.data(), mass_cloud.data());
-  CudaCheckError();
+  GPU_Error_Check();
 
   *integrand         = integrand_cloud[0];
   *density_cloud_tot = density_cloud[0];
@@ -124,7 +124,7 @@ void Update_Grid_Velocities(Real *dev_conserved, int nx, int ny, int nz, int n_g
 
   hipLaunchKernelGGL(Velocity_Update, dim1dGrid, dim1dBlock, 0, 0, dev_conserved, nx, ny, nz, n_ghost, n_fields, dt,
                      gamma, velocity_cloud, density_cloud_tot, mass_cloud_tot);
-  CudaCheckError();
+  GPU_Error_Check();;
 }
 
 __global__ void Velocity_Update(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields, Real dt,
