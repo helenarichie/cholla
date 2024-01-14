@@ -130,7 +130,7 @@ inline __host__ __device__ Real Get_Pressure_From_DE(Real const &E, Real const &
 inline __host__ __device__ Real Calc_Kinetic_Energy_From_Velocity(Real const &d, Real const &vx, Real const &vy,
                                                                   Real const &vz)
 {
-  return 0.5 * d * (vx * vx + vy * vy * vz * vz);
+  return 0.5 * d * (vx * vx + ((vy * vy) + (vz * vz)));
 }
 
 /*!
@@ -145,7 +145,7 @@ inline __host__ __device__ Real Calc_Kinetic_Energy_From_Velocity(Real const &d,
 inline __host__ __device__ Real Calc_Kinetic_Energy_From_Momentum(Real const &d, Real const &mx, Real const &my,
                                                                   Real const &mz)
 {
-  return (0.5 / d) * (mx * mx + my * my * mz * mz);
+  return (0.5 / d) *(mx * mx + ((my * my) + (mz * mz)));
 }
 
 /*!
