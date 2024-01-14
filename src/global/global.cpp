@@ -12,7 +12,8 @@
 
 #include <set>
 
-#include "../io/io.h"  //defines chprintf
+#include "../io/io.h"                 //defines chprintf
+#include "../utils/error_handling.h"  // defines ASSERT
 
 /* Global variables */
 Real gama;   // Ratio of specific heats
@@ -33,20 +34,21 @@ void Set_Gammas(Real gamma_in)
 {
   // set gamma
   gama = gamma_in;
+  CHOLLA_ASSERT(gama > 1.0, "Gamma must be greater than one.");
 }
 
-/*! \fn double get_time(void)
+/*! \fn double Get_Time(void)
  *  \brief Returns the current clock time. */
-double get_time(void)
+double Get_Time(void)
 {
   struct timeval timer;
   gettimeofday(&timer, NULL);
   return timer.tv_sec + 1.0e-6 * timer.tv_usec;
 }
 
-/*! \fn int sgn
+/*! \fn int Sgn
  *  \brief Mathematical sign function. Returns sign of x. */
-int sgn(Real x)
+int Sgn(Real x)
 {
   if (x < 0) {
     return -1;
@@ -55,28 +57,29 @@ int sgn(Real x)
   }
 }
 
-#ifndef CUDA
-/*! \fn Real calc_eta(Real cW[], Real gamma)
- *  \brief Calculate the eta value for the H correction. */
-Real calc_eta(Real cW[], Real gamma)
+// global mpi-related variables (they are declared here because they are initialized even when
+// the MPI_CHOLLA variable is not defined)
+
+int procID; /*process rank*/
+int nproc;  /*number of processes in global comm*/
+int root;   /*rank of root process*/
+
+/* Used when MPI_CHOLLA is not defined to initialize a subset of the global mpi-related variables
+ * that still meaningful in non-mpi simulations.
+ */
+void Init_Global_Parallel_Vars_No_MPI()
 {
-  Real pl, pr, al, ar;
-
-  pl = (cW[8] - 0.5 * (cW[2] * cW[2] + cW[4] * cW[4] + cW[6] * cW[6]) / cW[0]) * (gamma - 1.0);
-  pl = fmax(pl, TINY_NUMBER);
-  pr = (cW[9] - 0.5 * (cW[3] * cW[3] + cW[5] * cW[5] + cW[7] * cW[7]) / cW[1]) * (gamma - 1.0);
-  pr = fmax(pr, TINY_NUMBER);
-
-  al = sqrt(gamma * pl / cW[0]);
-  ar = sqrt(gamma * pr / cW[1]);
-
-  return 0.5 * fabs((cW[3] / cW[1] + ar) - (cW[2] / cW[0] - al));
+#ifdef MPI_CHOLLA
+  CHOLLA_ERROR("This function should not be executed when compiled with MPI");
+#endif
+  procID = 0;
+  nproc  = 1;
+  root   = 0;
 }
-#endif  // NO CUDA
 
-/*! \fn char trim(char *s)
+/*! \fn char Trim(char *s)
  *  \brief Gets rid of trailing and leading whitespace. */
-char *trim(char *s)
+char *Trim(char *s)
 {
   /* Initialize start, end pointers */
   char *s1 = s, *s2 = &s[strlen(s) - 1];
@@ -120,10 +123,10 @@ const std::set<const char *> optionalParams = {"flag_delta",
                                                "density_cloud_init",
                                                "density_wind_init"};
 
-/*! \fn int is_param_valid(char *name);
+/*! \fn int Is_Param_Valid(char *name);
  * \brief Verifies that a param is valid (even if not needed).  Avoids
  * "warnings" in output. */
-int is_param_valid(const char *param_name)
+int Is_Param_Valid(const char *param_name)
 {
   // for (auto optionalParam = optionalParams.begin(); optionalParam != optionalParams.end(); ++optionalParam) {
   for (const auto *optionalParam : optionalParams) {
@@ -134,11 +137,11 @@ int is_param_valid(const char *param_name)
   return 0;
 }
 
-void parse_param(char *name, char *value, struct parameters *parms);
+void Parse_Param(char *name, char *value, struct Parameters *parms);
 
-/*! \fn void parse_params(char *param_file, struct parameters * parms);
+/*! \fn void Parse_Params(char *param_file, struct Parameters * parms);
  *  \brief Reads the parameters in the given file into a structure. */
-void parse_params(char *param_file, struct parameters *parms, int argc, char **argv)
+void Parse_Params(char *param_file, struct Parameters *parms, int argc, char **argv)
 {
   int buf;
   char *s, buff[256];
@@ -148,22 +151,6 @@ void parse_params(char *param_file, struct parameters *parms, int argc, char **a
     exit(1);
     return;
   }
-  // set default hydro file output parameter
-  parms->n_hydro              = 1;
-  parms->n_particle           = 1;
-  parms->n_slice              = 1;
-  parms->n_projection         = 1;
-  parms->n_rotated_projection = 1;
-
-#ifdef ROTATED_PROJECTION
-  // initialize rotation parameters to zero
-  parms->delta      = 0;
-  parms->theta      = 0;
-  parms->phi        = 0;
-  parms->n_delta    = 0;
-  parms->ddelta_dt  = 0;
-  parms->flag_delta = 0;
-#endif /*ROTATED_PROJECTION*/
 
 #ifdef COSMOLOGY
   // Initialize file name as an empty string
@@ -191,8 +178,8 @@ void parse_params(char *param_file, struct parameters *parms, int argc, char **a
     } else {
       strncpy(value, s, MAXLEN);
     }
-    trim(value);
-    parse_param(name, value, parms);
+    Trim(value);
+    Parse_Param(name, value, parms);
   }
   /* Close file */
   fclose(fp);
@@ -212,14 +199,14 @@ void parse_params(char *param_file, struct parameters *parms, int argc, char **a
     } else {
       strncpy(value, s, MAXLEN);
     }
-    parse_param(name, value, parms);
+    Parse_Param(name, value, parms);
     chprintf("Override with %s=%s\n", name, value);
   }
 }
 
-/*! \fn void parse_param(char *name,char *value, struct parameters *parms);
+/*! \fn void Parse_Param(char *name,char *value, struct Parameters *parms);
  *  \brief Parses and sets a single param based on name and value. */
-void parse_param(char *name, char *value, struct parameters *parms)
+void Parse_Param(char *name, char *value, struct Parameters *parms)
 {
   /* Copy into correct entry in parameters struct */
   if (strcmp(name, "nx") == 0) {
@@ -228,6 +215,10 @@ void parse_param(char *name, char *value, struct parameters *parms)
     parms->ny = atoi(value);
   } else if (strcmp(name, "nz") == 0) {
     parms->nz = atoi(value);
+#ifdef STATIC_GRAV
+  } else if (strcmp(name, "custom_grav") == 0) {
+    parms->custom_grav = atoi(value);
+#endif
   } else if (strcmp(name, "tout") == 0) {
     parms->tout = atof(value);
   } else if (strcmp(name, "outstep") == 0) {
@@ -474,7 +465,7 @@ void parse_param(char *name, char *value, struct parameters *parms)
   } else if (strcmp(name, "density_wind_init") == 0) {
     parms->density_wind_init = atof(value);
 #endif
-  } else if (!is_param_valid(name)) {
+  } else if (!Is_Param_Valid(name)) {
     chprintf("WARNING: %s/%s: Unknown parameter/value pair!\n", name, value);
   }
 }
