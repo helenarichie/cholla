@@ -7,6 +7,8 @@
 
 #pragma once
 
+#include <string>
+
 // Local Includes
 #include "../global/global.h"
 #include "../global/global_cuda.h"
@@ -75,7 +77,7 @@ inline __host__ __device__ void Get_Real_Indices(int const &n_ghost, int const &
  * \param[in] ptr The pointer to GPU memory
  * \param[in] N The size of the array in bytes
  */
-inline void initGpuMemory(Real *ptr, size_t N) { CudaSafeCall(cudaMemset(ptr, 0, N)); }
+inline void initGpuMemory(Real *ptr, size_t N) { GPU_Error_Check(cudaMemset(ptr, 0, N)); }
 
 // =====================================================================
 /*!
@@ -120,5 +122,14 @@ struct AutomaticLaunchParams {
   /// The maximum number of scheduleable blocks on the device
   int numBlocks;
 };
+// =====================================================================
+
+// =====================================================================
+/*!
+ * \brief Print the current GPU memory usage to standard out
+ *
+ * \param additional_text Any additional text to be appended to the end of the message
+ */
+void Print_GPU_Memory_Usage(std::string const &additional_text = "");
 // =====================================================================
 }  // end namespace cuda_utilities

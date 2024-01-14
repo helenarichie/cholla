@@ -18,24 +18,25 @@
 
   #define TPB_FEEDBACK   128
   #define FEED_INFO_N    6
-  #define i_RES          1
-  #define i_UNRES        2
-  #define i_ENERGY       3
-  #define i_MOMENTUM     4
-  #define i_UNRES_ENERGY 5
+  #define I_RES          1  // unused
+  #define I_UNRES        2  // unused
+  #define I_ENERGY       3  // unused
+  #define I_MOMENTUM     4  // unused
+  #define I_UNRES_ENERGY 5  // used
 
-typedef curandStateMRG32k3a_t feedback_prng_t;
-// typedef curandStatePhilox4_32_10_t feedback_prng_t;
+typedef curandStateMRG32k3a_t FeedbackPrng;
+// typedef curandStatePhilox4_32_10_t FeedbackPrng;
 
 namespace supernova
 {
-feedback_prng_t* randStates;
+FeedbackPrng* randStates;
 part_int_t n_states;
 Real *dev_snr, snr_dt, time_sn_start, time_sn_end;
 int snr_n;
 }  // namespace supernova
 
   #ifndef O_HIP
+// NOLINTNEXTLINE(readability-identifier-naming)
 __device__ double atomicMax(double* address, double val)
 {
   auto* address_as_ull       = (unsigned long long int*)address;
@@ -48,7 +49,7 @@ __device__ double atomicMax(double* address, double val)
 }
   #endif  // O_HIP
 
-__global__ void initState_kernel(unsigned int seed, feedback_prng_t* states)
+__global__ void Init_State_Kernel(unsigned int seed, FeedbackPrng* states)
 {
   int id = blockIdx.x * blockDim.x + threadIdx.x;
   curand_init(seed, id, 0, &states[id]);
@@ -68,7 +69,7 @@ __global__ void initState_kernel(unsigned int seed, feedback_prng_t* states)
  * @param n_local  number of local particles on the GPU
  * @param allocation_factor
  */
-void supernova::initState(struct parameters* P, part_int_t n_local, Real allocation_factor)
+void supernova::initState(struct Parameters* P, part_int_t n_local, Real allocation_factor)
 {
   chprintf("supernova::initState start\n");
   std::string snr_filename(P->snr_filename);
@@ -120,8 +121,8 @@ void supernova::initState(struct parameters* P, part_int_t n_local, Real allocat
     // (i.e. assumes regular temporal spacing)
     snr_dt = (time_sn_end - time_sn_start) / (snr.size() - 1);
 
-    CHECK(cudaMalloc((void**)&dev_snr, snr.size() * sizeof(Real)));
-    CHECK(cudaMemcpy(dev_snr, snr.data(), snr.size() * sizeof(Real), cudaMemcpyHostToDevice));
+    GPU_Error_Check(cudaMalloc((void**)&dev_snr, snr.size() * sizeof(Real)));
+    GPU_Error_Check(cudaMemcpy(dev_snr, snr.data(), snr.size() * sizeof(Real), cudaMemcpyHostToDevice));
 
   } else {
     chprintf("No SN rate file specified.  Using constant rate\n");
@@ -131,14 +132,14 @@ void supernova::initState(struct parameters* P, part_int_t n_local, Real allocat
 
   // Now initialize the poisson random number generator state.
   n_states = n_local * allocation_factor;
-  cudaMalloc((void**)&randStates, n_states * sizeof(feedback_prng_t));
+  GPU_Error_Check(cudaMalloc((void**)&randStates, n_states * sizeof(FeedbackPrng)));
 
   int ngrid = (n_states - 1) / TPB_FEEDBACK + 1;
   dim3 grid(ngrid);
   dim3 block(TPB_FEEDBACK);
 
-  hipLaunchKernelGGL(initState_kernel, grid, block, 0, 0, P->prng_seed, randStates);
-  CHECK(cudaDeviceSynchronize());
+  hipLaunchKernelGGL(Init_State_Kernel, grid, block, 0, 0, P->prng_seed, randStates);
+  GPU_Error_Check(cudaDeviceSynchronize());
   chprintf("supernova::initState end: n_states=%ld, ngrid=%d, threads=%d\n", n_states, ngrid, TPB_FEEDBACK);
 }
 
@@ -175,9 +176,9 @@ __device__ Real Calc_Timestep(Real gamma, Real* density, Real* momentum_x, Real*
    should be dx*1/2. In the above the 1/2 factor is normalize over 2
    cells/direction.
   */
-__device__ Real frac(int i, Real dx) { return (-0.5 * i * i - 0.5 * i + 1 + i * dx) * 0.5; }
+__device__ Real Frac(int i, Real dx) { return (-0.5 * i * i - 0.5 * i + 1 + i * dx) * 0.5; }
 
-__device__ Real d_fr(int i, Real dx)
+__device__ Real D_Fr(int i, Real dx)
 {
   return (dx > 0.5) * i * (1 - 2 * dx) + ((i + 1) * dx + 0.5 * (i - 1)) - 3 * (i - 1) * (i + 1) * (0.5 - dx);
 }
@@ -233,7 +234,7 @@ __global__ void Cluster_Feedback_Kernel(part_int_t n_local, part_int_t* id, Real
                                         Real xMax, Real yMax, Real zMax, Real dx, Real dy, Real dz, int nx_g, int ny_g,
                                         int nz_g, int n_ghost, Real t, Real dt, Real* dti, Real* info, Real* density,
                                         Real* gasEnergy, Real* energy, Real* momentum_x, Real* momentum_y,
-                                        Real* momentum_z, Real gamma, feedback_prng_t* states, Real* prev_dens,
+                                        Real* momentum_z, Real gamma, FeedbackPrng* states, Real* prev_dens,
                                         int* prev_N, short direction, Real* dev_snr, Real snr_dt, Real time_sn_start,
                                         Real time_sn_end, int n_step)
 {
@@ -308,7 +309,7 @@ __global__ void Cluster_Feedback_Kernel(part_int_t n_local, part_int_t* id, Real
 
           // N = (int) (average_num_sn + 0.5);
 
-          feedback_prng_t state;  // = states[0]; // load initial state
+          FeedbackPrng state;  // = states[0]; // load initial state
 
           curand_init(42, 0, 0, &state);
           unsigned long long skip = n_step * 10000 + id[gtid];
@@ -475,9 +476,9 @@ __global__ void Cluster_Feedback_Kernel(part_int_t n_local, part_int_t* id, Real
                   // index in array of conserved quantities
                   indx = (indx_x + i) + (indx_y + j) * nx_g + (indx_z + k) * nx_g * ny_g;
 
-                  x_frac = d_fr(i, delta_x) * frac(j, delta_y) * frac(k, delta_z);
-                  y_frac = frac(i, delta_x) * d_fr(j, delta_y) * frac(k, delta_z);
-                  z_frac = frac(i, delta_x) * frac(j, delta_y) * d_fr(k, delta_z);
+                  x_frac = D_Fr(i, delta_x) * Frac(j, delta_y) * Frac(k, delta_z);
+                  y_frac = Frac(i, delta_x) * D_Fr(j, delta_y) * Frac(k, delta_z);
+                  z_frac = Frac(i, delta_x) * Frac(j, delta_y) * D_Fr(k, delta_z);
 
                   px = x_frac * feedback_momentum;
                   py = y_frac * feedback_momentum;
@@ -543,7 +544,7 @@ __global__ void Cluster_Feedback_Kernel(part_int_t n_local, part_int_t* id, Real
                   // atomicAdd(    &energy[indx], e );
                   // atomicAdd(   &density[indx], d );
 
-                  s_info[FEED_INFO_N * tid + i_UNRES_ENERGY] +=
+                  s_info[FEED_INFO_N * tid + I_UNRES_ENERGY] +=
                       direction * (px * px + py * py + pz * pz) / 2 / density[indx] * dV;
 
                   if (abs(momentum_x[indx] / density[indx]) >= C_L) {
@@ -672,15 +673,15 @@ Real supernova::Cluster_Feedback(Grid3D& G, FeedbackAnalysis& analysis)
   int* d_prev_N;
 
   if (G.Particles.n_local > 0) {
-    CHECK(cudaMalloc(&d_dti, sizeof(Real)));
-    CHECK(cudaMemcpy(d_dti, &h_dti, sizeof(Real), cudaMemcpyHostToDevice));
-    CHECK(cudaMalloc(&d_prev_dens, G.Particles.n_local * sizeof(Real)));
-    CHECK(cudaMalloc(&d_prev_N, G.Particles.n_local * sizeof(int)));
-    CHECK(cudaMemset(d_prev_dens, 0, G.Particles.n_local * sizeof(Real)));
-    CHECK(cudaMemset(d_prev_N, 0, G.Particles.n_local * sizeof(int)));
+    GPU_Error_Check(cudaMalloc(&d_dti, sizeof(Real)));
+    GPU_Error_Check(cudaMemcpy(d_dti, &h_dti, sizeof(Real), cudaMemcpyHostToDevice));
+    GPU_Error_Check(cudaMalloc(&d_prev_dens, G.Particles.n_local * sizeof(Real)));
+    GPU_Error_Check(cudaMalloc(&d_prev_N, G.Particles.n_local * sizeof(int)));
+    GPU_Error_Check(cudaMemset(d_prev_dens, 0, G.Particles.n_local * sizeof(Real)));
+    GPU_Error_Check(cudaMemset(d_prev_N, 0, G.Particles.n_local * sizeof(int)));
 
     ngrid = std::ceil((1. * G.Particles.n_local) / TPB_FEEDBACK);
-    CHECK(cudaMalloc((void**)&d_info, FEED_INFO_N * ngrid * sizeof(Real)));
+    GPU_Error_Check(cudaMalloc((void**)&d_info, FEED_INFO_N * ngrid * sizeof(Real)));
   }
   // TODO: info collection and max dti calculation
   // assumes ngrid is 1.  The reason being that reduction of
@@ -699,7 +700,7 @@ Real supernova::Cluster_Feedback(Grid3D& G, FeedbackAnalysis& analysis)
                          supernova::randStates, d_prev_dens, d_prev_N, direction, dev_snr, snr_dt, time_sn_start,
                          time_sn_end, G.H.n_step);
 
-      CHECK(cudaMemcpy(&h_dti, d_dti, sizeof(Real), cudaMemcpyDeviceToHost));
+      GPU_Error_Check(cudaMemcpy(&h_dti, d_dti, sizeof(Real), cudaMemcpyDeviceToHost));
     }
 
   #ifdef MPI_CHOLLA
@@ -720,7 +721,7 @@ Real supernova::Cluster_Feedback(Grid3D& G, FeedbackAnalysis& analysis)
                            supernova::randStates, d_prev_dens, d_prev_N, direction, dev_snr, snr_dt, time_sn_start,
                            time_sn_end, G.H.n_step);
 
-        CHECK(cudaDeviceSynchronize());
+        GPU_Error_Check(cudaDeviceSynchronize());
       }
       G.H.dt = C_cfl / h_dti;
     }
@@ -728,11 +729,11 @@ Real supernova::Cluster_Feedback(Grid3D& G, FeedbackAnalysis& analysis)
   } while (direction == -1);
 
   if (G.Particles.n_local > 0) {
-    CHECK(cudaMemcpy(&h_info, d_info, FEED_INFO_N * sizeof(Real), cudaMemcpyDeviceToHost));
-    CHECK(cudaFree(d_dti));
-    CHECK(cudaFree(d_info));
-    CHECK(cudaFree(d_prev_dens));
-    CHECK(cudaFree(d_prev_N));
+    GPU_Error_Check(cudaMemcpy(&h_info, d_info, FEED_INFO_N * sizeof(Real), cudaMemcpyDeviceToHost));
+    GPU_Error_Check(cudaFree(d_dti));
+    GPU_Error_Check(cudaFree(d_info));
+    GPU_Error_Check(cudaFree(d_prev_dens));
+    GPU_Error_Check(cudaFree(d_prev_N));
   }
 
   #ifdef MPI_CHOLLA
