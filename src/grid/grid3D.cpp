@@ -548,16 +548,6 @@ Real Grid3D::Update_Hydro_Grid()
   Dust_Update(C.device, H.nx, H.ny, H.nz, H.n_ghost, H.n_fields, H.dt, gama);
   #endif  // DUST
 
-#ifdef AVERAGE_SLOW_CELLS
-  // Set the min_delta_t for averaging a slow cell
-  Real max_dti_slow;
-  max_dti_slow = 1 / H.min_dt_slow;
-  Average_Slow_Cells(C.device, H.nx, H.ny, H.nz, H.n_ghost, H.n_fields, H.dx, H.dy, H.dz, gama, max_dti_slow);
-  #endif  // AVERAGE_SLOW_CELLS
-
-  // ==Calculate the next time step using Calc_dt_GPU from hydro/hydro_cuda.h==
-  max_dti = Calc_Inverse_Timestep();
-
   #ifdef CLOUD_TRACKING
   // ==Subtract average cloud velocity from grid==
   // Variables to store the mass-averaged cloud velocity and total cloud mass
