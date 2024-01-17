@@ -25,6 +25,8 @@ DFLAGS    += -DSCALAR_FLOOR
 # Define dust macro
 DFLAGS    += -DDUST
 
+# DFLAGS    += -DCLOUD_TRACKING
+
 # Apply the cooling in the GPU from precomputed tables
 DFLAGS    += -DCOOLING_GPU
 DFLAGS    += -DCLOUDY_COOLING
@@ -34,8 +36,6 @@ DFLAGS    += -DCLOUDY_COOLING
 
 DFLAGS    += -DSLICES
 DFLAGS    += -DPROJECTION
-
-DFLAGS    += -DCLOUD_TRACKING
 
 DFLAGS    += $(OUTPUT)
 

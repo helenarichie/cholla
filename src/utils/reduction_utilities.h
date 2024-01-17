@@ -44,22 +44,14 @@ __inline__ __device__ Real warpReduceMax(Real val)
 }
 // =====================================================================
 
-// =====================================================================
-/*!
- * \brief Perform a reduction within the warp/wavefront to find the
- * maximum value of `val`
- *
- * \param[in] val The thread local variable to find the maximum of across
- * the warp
- * \return Real The maximum value of `val` within the warp
- */
-__inline__ __device__ Real Warp_Reduction_Add(Real val)
+__inline__ __device__ Real Warp_Reduce_Add(Real val)
 {
   for (int offset = warpSize / 2; offset > 0; offset /= 2) {
     val += __shfl_down(val, offset);
   }
   return val;
 }
+
 // =====================================================================
 
 // =====================================================================
@@ -99,16 +91,7 @@ __inline__ __device__ Real blockReduceMax(Real val)
 }
 // =====================================================================
 
-// =====================================================================
-/*!
- * \brief Perform a reduction within the block to find the maximum value
- * of `val`
- *
- * \param[in] val The thread local variable to find the maximum of across
- * the block
- * \return Real The maximum value of `val` within the block
- */
-__inline__ __device__ Real Block_Reduction_Add(Real val)
+__inline__ __device__ Real Block_Reduce_Add(Real val)
 {
   // Shared memory for storing the results of each warp-wise partial
   // reduction
@@ -117,7 +100,7 @@ __inline__ __device__ Real Block_Reduction_Add(Real val)
   int lane   = threadIdx.x % warpSize;  // thread ID within the warp,
   int warpId = threadIdx.x / warpSize;  // ID of the warp itself
 
-  val = Warp_Reduction_Add(val);  // Each warp performs partial reduction
+  val = Warp_Reduce_Add(val);  // Each warp performs partial reduction
 
   if (lane == 0) {
     shared[warpId] = val;
@@ -129,12 +112,11 @@ __inline__ __device__ Real Block_Reduction_Add(Real val)
   val = (threadIdx.x < blockDim.x / warpSize) ? shared[lane] : 0;
 
   if (warpId == 0) {
-    val = Warp_Reduction_Add(val);
+    val = Warp_Reduce_Add(val);
   }  // Final reduce within first warp
 
   return val;
 }
-// =====================================================================
 
   #ifndef O_HIP
 // =====================================================================
@@ -253,24 +235,6 @@ inline __device__ double atomicMaxBits(double* address, double val)
 }
 
 /*!
- * \brief Perform an atomic reduction to find the sum of `val`
- *
- * \param[out] address The pointer to where to store the reduced scalar
- * value in device memory
- * \param[in] val The thread local variable to find the maximum of across
- * the grid. Typically this should be a partial reduction that has
- * already been reduced to the block level
- */
-inline __device__ double Atomic_Add_Bits(double* address, double val)
-{
-  #ifdef O_HIP
-  return atomicAdd(address, val);
-  #else  // O_HIP
-  return atomicAdd(address, val);
-  #endif
-}
-
-/*!
  * \brief Perform an atomic reduction to find the minimum value of `val`
  *
  * \param[out] address The pointer to where to store the reduced scalar
@@ -306,6 +270,28 @@ inline __device__ double atomicMinBits(double* address, double val)
   long long old = atomicMin((long long*)address, encode(val));
   return decode(old);
   #endif  // O_HIP
+}
+// =====================================================================
+
+// =====================================================================
+inline __device__ float Atomic_Add_Bits(float* address, float val)
+{
+  #ifdef O_HIP
+  return atomicAdd(address, val);
+  #else  // O_HIP
+  return atomicAdd(address, val);
+  #endif
+}
+// =====================================================================
+
+// =====================================================================
+inline __device__ double Atomic_Add_Bits(double* address, double val)
+{
+  #ifdef O_HIP
+  return atomicAdd(address, val);
+  #else  // O_HIP
+  return atomicAdd(address, val);
+  #endif
 }
 // =====================================================================
 
@@ -358,37 +344,10 @@ __inline__ __device__ void gridReduceMax(Real val, Real* out)
 // =====================================================================
 
 // =====================================================================
-/*!
- * \brief
- *
- * \details This function can perform a reduction to find the sum
- * across the entire grid. It relies on a
- * warp-wise reduction using registers followed by a block-wise reduction
- * using shared memory, and finally a grid-wise reduction using atomics.
- * As a result the performance of this function is substantally improved
- * by using as many threads per block as possible and as few blocks as
- * possible since each block has to perform an atomic operation. To
- * accomplish this it is reccommened that you use the
- * `AutomaticLaunchParams` functions to get the optimal number of blocks
- * and threads per block to launch rather than relying on Cholla defaults
- * and then within the kernel using a grid-stride loop to make sure the
- * kernel works with any combination of threads and blocks. Note that
- * after this function call you cannot use the reduced value in global
- * memory since there is no grid wide sync. You can get around this by
- * either launching a second kernel to do the next steps or by using
- * cooperative groups to perform a grid wide sync. During its execution
- * it also calls multiple __synchThreads and so cannot be called from
- * within any kind of thread guard.
- *
- * \param[in] val The thread local variable to find the maximum of across
- * the grid
- * \param[out] out The pointer to where to store the reduced scalar value
- * in device memory
- */
-__inline__ __device__ void Grid_Reduction_Add(Real val, Real* out)
+__inline__ __device__ void Grid_Reduce_Add(Real val, Real* out)
 {
   // Reduce the entire block in parallel
-  val = Block_Reduction_Add(val);
+  val = Block_Reduce_Add(val);
 
   // Write block level reduced value to the output scalar atomically
   if (threadIdx.x == 0) {

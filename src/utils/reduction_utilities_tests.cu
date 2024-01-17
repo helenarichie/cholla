@@ -76,14 +76,13 @@ TEST(tALLKernelReduceSum, CorrectInputExpectCorrectOutput)
   // ====================================
   size_t const size = std::pow(64, 3);
   std::vector<Real> host_grid(size);  // host copy of array to be summed
-  std::vector<Real> host_sum(1);  // variable to store result of sum reduction
+  std::vector<Real> host_sum(1);      // variable to store result of sum reduction
 
-  host_sum[0] = 5.0;
+  host_sum[0] = 0.0;
   // Fill grid with ones
   for (Real& host_data : host_grid) {
     host_data = 1;
   }
-
   // Allocating and copying to device
   // ================================
   cuda_utilities::DeviceVector<Real> dev_grid(host_grid.size());
@@ -94,17 +93,14 @@ TEST(tALLKernelReduceSum, CorrectInputExpectCorrectOutput)
 
   // Do the reduction
   // ================
-  // .data() passes the kernel a pointer
-  hipLaunchKernelGGL(reduction_utilities::Kernel_Reduce_Add, launch_params.numBlocks, launch_params.threadsPerBlock, 0, 0,
-                     dev_grid.data(), dev_sum.data(), host_grid.size());
+  // .data() passes the a pointer to the kernel
+  hipLaunchKernelGGL(reduction_utilities::Kernel_Reduce_Add, launch_params.numBlocks, launch_params.threadsPerBlock, 0,
+                     0, dev_grid.data(), dev_sum.data(), host_grid.size());
   cudaDeviceSynchronize();
   CudaCheckError();
 
   dev_sum.cpyDeviceToHost(host_sum);
   CudaCheckError();
-
-  printf("size: %d\n", size);
-  printf("sum: %e\n", host_sum[0]);
 
   // Perform comparison
   testingUtilities::checkResults(size, host_sum[0], "sum found");

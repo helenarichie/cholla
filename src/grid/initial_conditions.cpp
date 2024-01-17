@@ -1315,7 +1315,7 @@ void Grid3D::Clouds(struct Parameters P)
   int i, j, k, id;
   int istart, jstart, kstart, iend, jend, kend;
   Real x_pos, y_pos, z_pos;
-  Real n_bg;            // background and cloud number density
+  Real n_bg, n_cl;      // background and cloud number density
   Real rho_bg, rho_cl;  // background and cloud density
   Real vx_bg, vx_cl;    // background and cloud velocity
   Real vy_bg, vy_cl;
@@ -1345,19 +1345,23 @@ void Grid3D::Clouds(struct Parameters P)
     printf("Cloud positions: %f %f %f\n", cl_pos[nn][0], cl_pos[nn][1], cl_pos[nn][2]);
   }
 
-  n_bg   = 1e-2;
-  rho_cl = 1e-23 / DENSITY_UNIT;
+  n_bg   = 1.0e-2;
+  n_cl   = 10;
+  rho_bg = n_bg * mu * MP / DENSITY_UNIT;
+  rho_cl = n_cl * mu * MP / DENSITY_UNIT;
 #ifdef CLOUD_TRACKING
   rho_cl = P.density_cloud_init / DENSITY_UNIT;
+  rho_bg = P.density_wind_init / DENSITY_UNIT;
+  printf("Cloud initial density: %e\n", P.density_cloud_init);
+  printf("Wind initial density: %e\n", P.density_wind_init);
 #endif
-  rho_bg = n_bg * mu * MP / DENSITY_UNIT;
-  vx_bg  = 500 * TIME_UNIT / KPC;
+  vx_bg = 500 * TIME_UNIT / KPC;
   // vx_c  = -200*TIME_UNIT/KPC; // convert from km/s to kpc/kyr
-  vx_cl = 0.0;
+  vx_cl = 0 * TIME_UNIT / KPC;
   vy_bg = vy_cl = 0.0;
   vz_bg = vz_cl = 0.0;
   T_bg          = 3e6;
-  T_cl          = 3e3;
+  // T_cl          = 3e4;
   p_bg          = n_bg * KB * T_bg / PRESSURE_UNIT;
   p_cl          = p_bg;
 
@@ -1397,10 +1401,8 @@ void Grid3D::Clouds(struct Parameters P)
 #ifdef DE
         C.GasEnergy[id] = p_bg / (gama - 1.0);
 #endif
-#ifdef SCALAR
-  #ifdef DUST
+#ifdef DUST
         C.host[id + H.n_cells * grid_enum::dust_density] = 0.0;
-  #endif
 #endif
         // add clouds
         for (int nn = 0; nn < N_cl; nn++) {

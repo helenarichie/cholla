@@ -41,26 +41,18 @@ __global__ void kernelReduceMax(Real* in, Real* out, size_t N)
 }
 // =====================================================================
 
-// =====================================================================
 __global__ void Kernel_Reduce_Add(Real* in, Real* out, size_t N)
 {
-  __shared__ Real sum_stride[TPB]; // array shared between each block
- 
-  for (int i = 0; i < TPB; i++) {
-    sum_stride[i] = 0;
-  }
+  Real sum_stride = 0;
 
-// Grid stride loop to read global array into shared block-wide array
+  // Each thread strides through the grid to perform a partial reduction
   for (size_t i = blockIdx.x * blockDim.x + threadIdx.x; i < N; i += blockDim.x * gridDim.x) {
-    sum_stride[threadIdx.x] += in[i];
+    sum_stride += in[i];
   }
   __syncthreads();
 
-  Grid_Reduction_Add(sum_stride[threadIdx.x], out);
-  if (threadIdx.x == 0) {
-    printf("kernel: %f\n", *out);
-  }
+  // Perform grid-wide reduction
+  Grid_Reduce_Add(sum_stride, out);
 }
-// =====================================================================
 }  // namespace reduction_utilities
 #endif  // CUDA

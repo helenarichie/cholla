@@ -29,9 +29,6 @@
 #ifdef CLOUDY_COOL
   #include "../cooling/load_cloudy_texture.h"  // provides Load_Cuda_Textures and Free_Cuda_Textures
 #endif
-#ifdef CLOUD_TRACKING
-  #include "../cloud_tracking/cloud_tracking.h"
-#endif
 
 #ifdef PARALLEL_OMP
   #include "../utils/parallel_omp.h"
@@ -39,6 +36,10 @@
 
 #ifdef COOLING_GPU
   #include "../cooling/cooling_cuda.h"  // provides Cooling_Update
+#endif
+
+#ifdef CLOUD_TRACKING
+  #include "../cloud_tracking/cloud_tracking.h"
 #endif
 
 #ifdef DUST
@@ -162,6 +163,11 @@ void Grid3D::Initialize(struct Parameters *P)
 #ifdef AVERAGE_SLOW_CELLS
   H.min_dt_slow = 0.024;  // Initialize the minumum dt to a tiny number
 #endif                   // AVERAGE_SLOW_CELLS
+
+#ifdef CLOUD_TRACKING
+  H.density_cloud_init = P->density_cloud_init;
+  H.density_wind_init  = P->density_wind_init;
+#endif
 
 #ifndef MPI_CHOLLA
 
@@ -467,25 +473,6 @@ void Grid3D::Execute_Hydro_Integrator(void)
   } else if (H.nx > 1 && H.ny > 1 && H.nz > 1)  // 3D
   {
 #ifdef CUDA
-  #ifdef CLOUD_TRACKING
-    // ==Subtract average cloud velocity from grid==
-    // Variables to store the mass-averaged cloud velocity and total cloud mass
-    Real velocity_cloud;
-    Real integrand, density_cloud_tot, mass_cloud_tot;
-    Real density;
-    // Do the grid-wide reduction to get the sum of rho*vx and total density for the entire cloud
-    Cloud_Frame_Update(C.device, H.nx, H.ny, H.nz, H.dx, H.dy, H.dz, H.n_ghost, H.n_fields, H.dt, gama,
-                       H.density_cloud_init, &integrand, &density_cloud_tot, &mass_cloud_tot);
-
-    // chprintf("Cloud mass = %e\n", mass_cloud_tot);
-    velocity_cloud = integrand / mass_cloud_tot;
-    Update_Grid_Velocities(C.device, H.nx, H.ny, H.nz, H.n_ghost, H.n_fields, H.dt, gama, velocity_cloud,
-                           density_cloud_tot, mass_cloud_tot);
-    // chprintf("Cloud frame update = %d\n", state);
-    chprintf("Average cloud velocity = %e\n", velocity_cloud);
-    chprintf("Integrand = %e\n", integrand);
-    chprintf("Mass cloud = %e\n", mass_cloud_tot);
-  #endif  // CLOUD_TRACKING
 
   #ifdef VL
     VL_Algorithm_3D_CUDA(C.device, C.d_Grav_potential, H.nx, H.ny, H.nz, x_off, y_off, z_off, H.n_ghost, H.dx, H.dy,
@@ -551,21 +538,86 @@ Real Grid3D::Update_Hydro_Grid()
   #endif  // DUST
 
   #ifdef CLOUD_TRACKING
-  // ==Subtract average cloud velocity from grid==
-  // Variables to store the mass-averaged cloud velocity and total cloud mass
-  Real velocity_cloud;
-  Real integrand, density_cloud_tot, mass_cloud_tot;
-  Real density;
-  // Do the grid-wide reduction to get the sum of rho*vx and total density for the entire cloud
-  Cloud_Frame_Update(C.device, H.nx, H.ny, H.nz, H.dx, H.dy, H.dz, H.n_ghost, H.n_fields, H.dt, gama,
-                     H.density_cloud_init, &integrand, &density_cloud_tot, &mass_cloud_tot);
-  velocity_cloud = integrand / mass_cloud_tot;
-  Update_Grid_Velocities(C.device, H.nx, H.ny, H.nz, H.n_ghost, H.n_fields, H.dt, gama, velocity_cloud,
-                         density_cloud_tot, mass_cloud_tot);
-  // chprintf("Cloud frame update = %d\n", state);
-  chprintf("Average cloud velocity = %e\n", velocity_cloud);
-  chprintf("Integrand = %e\n", integrand);
-  chprintf("Mass cloud = %e\n", mass_cloud_tot);
+  if ((H.n_step % 20) == 0) {
+  Real mass_cloud, integrand_cloud, velocity_x_cloud_avg, mass_cloud_tot;
+  // Do the grid-wide reduction to get the sum of rho*vx*V and the total mass for the entire cloud
+  Cloud_Velocity_Reduction(C.device, H.nx, H.ny, H.nz, H.dx, H.dy, H.dz, H.n_ghost, H.n_fields, H.density_cloud_init,
+                           H.density_wind_init, &mass_cloud, &integrand_cloud);
+
+  //printf("before mpi: %e\n", integrand_cloud/mass_cloud);
+
+    #ifdef MPI_CHOLLA
+
+  Real integrand_reduced;
+  Real mass_reduced;
+
+  MPI_Allreduce(&integrand_cloud, &integrand_reduced, 1, MPI_CHREAL, MPI_SUM, world);
+  MPI_Allreduce(&mass_cloud, &mass_reduced, 1, MPI_CHREAL, MPI_SUM, world);
+  
+  // Perform the MPI sum reduction
+
+  // Initialize buffer for root to hold each process's partial integrands and masses
+  /*Real *integrands_cloud = NULL;
+  Real *masses_cloud     = NULL;
+  if (procID == root) {
+    integrands_cloud = (Real *)malloc(sizeof(Real) * nproc);
+    masses_cloud     = (Real *)malloc(sizeof(Real) * nproc);
+  }
+
+  // Gather each process's integrand and mass into buffer
+  MPI_Gather(&integrand_cloud, 1, MPI_CHREAL, integrands_cloud, 1, MPI_CHREAL, root, world);
+  MPI_Gather(&mass_cloud, 1, MPI_CHREAL, masses_cloud, 1, MPI_CHREAL, root, world);
+
+  // Root process gets the total mass and integrand and calculates the mass-weighted average velocity
+  if (procID == root) {
+    Real root_integrand_cloud = 0;
+    Real root_mass_cloud      = 0;
+    for (int i = 0; i < nproc; i++) {
+      printf("different velocities: %e\n", integrands_cloud[i]/masses_cloud[i]);
+      root_integrand_cloud += integrands_cloud[i];
+      root_mass_cloud += masses_cloud[i];
+    }
+    // Calculate the mass-averaged x-velocity (Shin et al. (2008) eq. 9)
+    if ((root_integrand_cloud == 0) or (root_mass_cloud == 0)) {
+      velocity_x_cloud_avg = 0;
+    } else {
+      velocity_x_cloud_avg = root_integrand_cloud / root_mass_cloud;
+    }
+    mass_cloud_tot = root_mass_cloud;
+  }
+
+  // Send the total values to all processes
+  MPI_Bcast(&velocity_x_cloud_avg, 1, MPI_CHREAL, root, world);
+  MPI_Bcast(&mass_cloud_tot, 1, MPI_CHREAL, root, world);
+
+  free(integrands_cloud);
+  free(masses_cloud);
+  */ 
+
+    #endif  // MPI_CHOLLA
+
+  // Calculate the mass-averaged x-velocity (Shin et al. (2008) eq. 9)
+  if ((integrand_reduced == 0) or (mass_reduced == 0)) {
+    velocity_x_cloud_avg = 0;
+  } else {
+    velocity_x_cloud_avg = integrand_reduced / mass_reduced;
+  }
+
+  // Update the cumulative reference frame shift
+  H.velocity_x_cloud_avg += velocity_x_cloud_avg;
+
+  // printf("cumulative velocity: %e\n", H.velocity_x_cloud_avg);
+
+  chprintf("Average cloud velocity = %e km/s\n", velocity_x_cloud_avg * KPC / TIME_UNIT);
+  chprintf("Mass = %e M_sun\n", mass_reduced);
+
+  #ifdef MPI_CHOLLA
+  MPI_Barrier(world);
+  #endif
+  // Subtract this timestep's reference frame shift off from the entire grid
+  Update_Grid_Frame(C.device, H.nx, H.ny, H.nz, H.n_ghost, H.n_fields, velocity_x_cloud_avg);
+  }
+
   #endif  // CLOUD_TRACKING
 
 #endif  // CUDA
@@ -577,7 +629,6 @@ Real Grid3D::Update_Hydro_Grid()
   Timer.Chemistry.RecordTime(Chem.H.runtime_chemistry_step);
   non_hydro_elapsed_time += Chem.H.runtime_chemistry_step;
   #endif
-
   C.HI_density    = &C.host[H.n_cells * grid_enum::HI_density];
   C.HII_density   = &C.host[H.n_cells * grid_enum::HII_density];
   C.HeI_density   = &C.host[H.n_cells * grid_enum::HeI_density];
