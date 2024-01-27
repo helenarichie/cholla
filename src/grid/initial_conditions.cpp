@@ -1323,8 +1323,13 @@ void Grid3D::Clouds(struct parameters P)
   Real T_bg, T_cl;       // background and cloud temperature
   Real p_bg, p_cl;       // background and cloud pressure
   Real mu   = 0.6;       // mean atomic weight
+<<<<<<< HEAD
   int N_cl  = 1;         // number of clouds
   Real R_cl = 0.1;     // cloud radius in code units (kpc)
+=======
+  int N_cl  = 0;         // number of clouds
+  Real R_cl = 2.5;       // cloud radius in code units (kpc)
+>>>>>>> dev-scalar-floor
   Real cl_pos[N_cl][3];  // array of cloud positions
   Real r;
 
@@ -1418,10 +1423,11 @@ void Grid3D::Clouds(struct parameters P)
 #ifdef DE
             C.GasEnergy[id] = p_cl / (gama - 1.0);
 #endif  // DE
-
-#ifdef DUST
+#ifdef SCALAR
+  #ifdef DUST
             C.host[id + H.n_cells * grid_enum::dust_density] = rho_cl * 1e-2;
-#endif  // DUST
+  #endif  // DUST
+#endif    // SCALAR
           }
         }
       }

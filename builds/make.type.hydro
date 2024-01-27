@@ -3,24 +3,28 @@
 DFLAGS    += -DCUDA
 DFLAGS    += -DMPI_CHOLLA
 DFLAGS    += -DPRECISION=2
-DFLAGS    += -DPPMC
+DFLAGS    += -DPLMC
 DFLAGS    += -DHLLC
 
 # Integrator
+ifeq ($(findstring cosmology,$(TYPE)),cosmology)
 DFLAGS    += -DSIMPLE
-#DFLAGS    += -DVL
+else
+DFLAGS    += -DVL
+endif
 
 # Apply a density and temperature floor
-DFLAGS    += -DDENSITY_FLOOR
-DFLAGS    += -DTEMPERATURE_FLOOR
+#DFLAGS    += -DDENSITY_FLOOR
+#DFLAGS    += -DTEMPERATURE_FLOOR
 
 # Solve the Gas Internal Energy usisng a Dual Energy Formalism
-#DFLAGS    += -DDE
+DFLAGS    += -DDE
 
 DFLAGS += -DSLICES
 
 # Apply cooling on the GPU from precomputed tables
 #DFLAGS    += -DCOOLING_GPU
+DFLAGS    += -DAVERAGE_SLOW_CELLS
 
 # Apply reference frame shift to track cloud
 DFLAGS += -DCLOUD_TRACKING
@@ -29,6 +33,9 @@ DFLAGS += -DCLOUD_TRACKING
 #DFLAGS    += -DCPU_TIME
 
 # Select output format
-# Can also add -DSLICES and -DPROJECTIONS
-OUTPUT    ?=  -DOUTPUT -DHDF5
+# Can also add -DSLICES and -DPROJECTION
+OUTPUT    ?=  -DOUTPUT -DHDF5 
 DFLAGS    += $(OUTPUT)
+
+DFLAGS    += -DSLICES
+DFLAGS    += -DPROJECTION

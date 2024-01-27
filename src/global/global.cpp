@@ -257,6 +257,14 @@ void Parse_Param(char *name, char *value, struct Parameters *parms)
   } else if (strcmp(name, "out_float32_GasEnergy") == 0) {
     parms->out_float32_GasEnergy = atoi(value);
 #endif  // DE
+  } else if (strcmp(name, "output_always") == 0) {
+    int tmp = atoi(value);
+    // In this case the CHOLLA_ASSERT macro runs into issuse with the readability-simplify-boolean-expr clang-tidy check
+    // due to some weird macro expansion stuff. That check has been disabled here for now but in clang-tidy 18 the
+    // IgnoreMacro option should be used instead.
+    // NOLINTNEXTLINE(readability-simplify-boolean-expr)
+    CHOLLA_ASSERT((tmp == 0) or (tmp == 1), "output_always must be 1 or 0.");
+    parms->output_always = tmp;
 #ifdef MHD
   } else if (strcmp(name, "out_float32_magnetic_x") == 0) {
     parms->out_float32_magnetic_x = atoi(value);
@@ -445,6 +453,18 @@ void Parse_Param(char *name, char *value, struct Parameters *parms)
   } else if (strcmp(name, "UVB_rates_file") == 0) {
     strncpy(parms->UVB_rates_file, value, MAXLEN);
 #endif
+#ifdef TEMPERATURE_FLOOR
+  } else if (strcmp(name, "temperature_floor") == 0) {
+    parms->temperature_floor = atof(value);
+#endif
+#ifdef DENSITY_FLOOR
+  } else if (strcmp(name, "density_floor") == 0) {
+    parms->density_floor = atof(value);
+#endif
+#ifdef SCALAR_FLOOR
+  } else if (strcmp(name, "scalar_floor") == 0) {
+    parms->scalar_floor = atof(value);
+#endif
 #ifdef ANALYSIS
   } else if (strcmp(name, "analysis_scale_outputs_file") == 0) {
     strncpy(parms->analysis_scale_outputs_file, value, MAXLEN);
@@ -464,6 +484,11 @@ void Parse_Param(char *name, char *value, struct Parameters *parms)
     parms->density_cloud_init = atof(value);
   } else if (strcmp(name, "density_wind_init") == 0) {
     parms->density_wind_init = atof(value);
+#ifdef SCALAR
+  #ifdef DUST
+  } else if (strcmp(name, "grain_radius") == 0) {
+    parms->grain_radius = atoi(value);
+  #endif
 #endif
   } else if (!Is_Param_Valid(name)) {
     chprintf("WARNING: %s/%s: Unknown parameter/value pair!\n", name, value);
