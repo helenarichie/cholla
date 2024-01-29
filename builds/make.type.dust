@@ -25,17 +25,12 @@ DFLAGS    += -DSCALAR_FLOOR
 
 # Define dust macro
 DFLAGS    += -DDUST
-
-DFLAGS += -DCLOUD_TRACKING
+DFLAGS    += -DOUTFLOW_ANALYSIS
+# DFLAGS += -DCLOUD_TRACKING
 
 # Apply the cooling in the GPU from precomputed tables
-<<<<<<< HEAD
-DFLAGS += -DCOOLING_GPU
-DFLAGS += -DCLOUDY_COOLING
-=======
 DFLAGS    += -DCOOLING_GPU
 DFLAGS    += -DCLOUDY_COOLING
->>>>>>> dev-scalar-floor
 
 #Measure the Timing of the different stages
 #DFLAGS   += -DCPU_TIME

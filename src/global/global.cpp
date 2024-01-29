@@ -484,6 +484,7 @@ void Parse_Param(char *name, char *value, struct Parameters *parms)
     parms->density_cloud_init = atof(value);
   } else if (strcmp(name, "density_wind_init") == 0) {
     parms->density_wind_init = atof(value);
+#endif
 #ifdef SCALAR
   #ifdef DUST
   } else if (strcmp(name, "grain_radius") == 0) {
