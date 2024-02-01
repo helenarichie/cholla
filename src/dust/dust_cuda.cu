@@ -20,25 +20,41 @@
   #include "../global/global.h"
   #include "../global/global_cuda.h"
   #include "../grid/grid3D.h"
+  #include "../utils/DeviceVector.h"
   #include "../grid/grid_enum.h"
   #include "../utils/cuda_utilities.h"
   #include "../utils/gpu.hpp"
   #include "../utils/hydro_utilities.h"
+  #include "../utils/reduction_utilities.h"
 
 void Dust_Update(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields, Real dt, Real gamma,
-                 Real grain_radius)
+                 Real grain_radius, Real *mass_hot, Real *mass_mixed)
 {
   int n_cells = nx * ny * nz;
   int ngrid   = (n_cells + TPB - 1) / TPB;
   dim3 dim1dGrid(ngrid, 1, 1);
   dim3 dim1dBlock(TPB, 1, 1);
+  
+  cuda_utilities::DeviceVector<Real> dev_mass_mixed(1, true);
+  cuda_utilities::DeviceVector<Real> dev_mass_hot(1, true);
+
+  std::vector<Real> host_mass_mixed{0};
+  std::vector<Real> host_mass_hot{0};
+
   hipLaunchKernelGGL(Dust_Kernel, dim1dGrid, dim1dBlock, 0, 0, dev_conserved, nx, ny, nz, n_ghost, n_fields, dt, gamma,
-                     grain_radius);
+                     grain_radius, dev_mass_mixed.data(), dev_mass_hot.data());
   GPU_Error_Check();
+  cudaDeviceSynchronize();
+
+  dev_mass_mixed.cpyDeviceToHost(host_mass_mixed);
+  dev_mass_hot.cpyDeviceToHost(host_mass_hot);
+
+  *mass_mixed = host_mass_mixed[0];
+  *mass_hot = host_mass_hot[0];
 }
 
 __global__ void Dust_Kernel(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields, Real dt, Real gamma,
-                            Real grain_radius)
+                            Real grain_radius, Real *mass_hot, Real *mass_mixed)
 {
   // get grid indices
   int n_cells = nx * ny * nz;
@@ -55,6 +71,8 @@ __global__ void Dust_Kernel(Real *dev_conserved, int nx, int ny, int nz, int n_g
   Real density_gas, density_dust;  // fluid mass densities
   Real number_density;             // gas number density
   Real mu = 0.6;                   // mean molecular weight
+  Real sputtered_hot_stride = 0;
+  Real sputtered_mixed_stride = 0;  // mixed and hot-phase sputtered dust masses
 
   // define integration variables
   Real dd_dt;          // instantaneous rate of change in dust density
@@ -110,8 +128,18 @@ __global__ void Dust_Kernel(Real *dev_conserved, int nx, int ny, int nz, int n_g
     // update dust density
     density_dust += dd;
 
+    if (temperature >= 1e6) {
+      sputtered_hot_stride += dd;
+    } else {
+      sputtered_mixed_stride += dd;
+    }
+
     dev_conserved[id + n_cells * grid_enum::dust_density] = density_dust;
   }
+  __syncthreads();
+
+  reduction_utilities::Grid_Reduce_Add(sputtered_hot_stride, mass_hot);
+  reduction_utilities::Grid_Reduce_Add(sputtered_mixed_stride, mass_mixed);
 }
 
 // McKinnon et al. (2017) sputtering timescale

@@ -150,6 +150,13 @@ void Write_Data(Grid3D &G, struct Parameters P, int nfile)
   }
 #endif /*SLICES*/
 
+#ifdef OUTFLOW_ANALYSIS
+  if (nfile % P.n_slice == 0) {
+    Output_Edges(G, P, nfile);
+  }
+#endif /*OUTFLOW_ANALYSIS*/
+
+
 #ifdef PARTICLES
   if (nfile % P.n_particle == 0) {
     G.WriteData_Particles(P, nfile);
@@ -576,6 +583,50 @@ void Output_Slices(Grid3D &G, struct Parameters P, int nfile)
   #endif  // MPI_CHOLLA
 #else     // HDF5 is not defined
   printf("Output_Slices only defined for hdf5 writes.\n");
+#endif    // HDF5
+}
+
+/* Output xy, xz, and yz slices of the grid data. */
+void Output_Edges(Grid3D &G, struct Parameters P, int nfile)
+{
+#ifdef HDF5
+  hid_t file_id;
+  herr_t status;
+
+  // create the filename
+  std::string filename(P.outdir);
+  filename += std::to_string(nfile);
+  filename += "_edges.h5";
+
+  #ifdef MPI_CHOLLA
+  filename += "." + std::to_string(procID);
+  #endif /*MPI_CHOLLA*/
+
+  // Create a new file
+  file_id = H5Fcreate(filename.data(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+
+  // Write header (file attributes)
+  G.Write_Header_HDF5(file_id);
+
+  // Write slices of all variables to the output file
+  G.Write_Edges_HDF5(file_id);
+
+  // Close the file
+  status = H5Fclose(file_id);
+
+  #ifdef MPI_CHOLLA
+  if (status < 0) {
+    printf("Output_Edges: File write failed. ProcID: %d\n", procID);
+    chexit(-1);
+  }
+  #else   // MPI_CHOLLA is not defined
+  if (status < 0) {
+    printf("Output_Edges: File write failed.\n");
+    exit(-1);
+  }
+  #endif  // MPI_CHOLLA
+#else     // HDF5 is not defined
+  printf("Output_Edges only defined for hdf5 writes.\n");
 #endif    // HDF5
 }
 
@@ -2271,6 +2322,595 @@ void Grid3D::Write_Slices_HDF5(hid_t file_id)
     free(dataset_buffer_scalar);
   #endif
 
+  } else {
+    printf("Slice write only works for 3D data.\n");
+  }
+}
+
+void Grid3D::Write_Edges_HDF5(hid_t file_id)
+{
+  int i, j, k, id, buf_id;
+  hid_t dataset_id, dataspace_id;
+  Real *dataset_buffer_d;
+  Real *dataset_buffer_mx;
+  Real *dataset_buffer_my;
+  Real *dataset_buffer_mz;
+  Real *dataset_buffer_E;
+  #ifdef DE
+  Real *dataset_buffer_GE;
+  #endif
+  #ifdef SCALAR
+  Real *dataset_buffer_scalar;
+  #endif
+  herr_t status;
+  int minus_xslice, minus_yslice, minus_zslice, plus_xslice, plus_yslice, plus_zslice;
+  minus_xslice = 0;
+  minus_yslice = 0;
+  minus_zslice = 0;
+  plus_xslice = H.nx;
+  plus_yslice = H.ny;
+  plus_zslice = H.nz;
+  #ifdef MPI_CHOLLA
+  minus_xslice = 0;
+  minus_yslice = 0;
+  minus_zslice = 0;
+  plus_xslice = nx_global-1;
+  plus_yslice = ny_global-1;
+  plus_zslice = nz_global-1;
+  #endif
+  // 3D
+  if (H.nx > 1 && H.ny > 1 && H.nz > 1) {
+    int nx_dset = H.nx_real;
+    int ny_dset = H.ny_real;
+    int nz_dset = H.nz_real;
+    hsize_t dims[2];
+////////////////////////////////////////////////////////////
+    // Create the -xy data space for the datasets
+    dims[0]      = nx_dset;
+    dims[1]      = ny_dset;
+    dataspace_id = H5Screate_simple(2, dims, NULL);
+
+    // Allocate memory for the -xy slices
+    dataset_buffer_d  = (Real *)malloc(H.nx_real * H.ny_real * sizeof(Real));
+    dataset_buffer_mx = (Real *)malloc(H.nx_real * H.ny_real * sizeof(Real));
+    dataset_buffer_my = (Real *)malloc(H.nx_real * H.ny_real * sizeof(Real));
+    dataset_buffer_mz = (Real *)malloc(H.nx_real * H.ny_real * sizeof(Real));
+    dataset_buffer_E  = (Real *)malloc(H.nx_real * H.ny_real * sizeof(Real));
+  #ifdef DE
+    dataset_buffer_GE = (Real *)malloc(H.nx_real * H.ny_real * sizeof(Real));
+  #endif
+  #ifdef SCALAR
+    dataset_buffer_scalar = (Real *)malloc(NSCALARS * H.nx_real * H.ny_real * sizeof(Real));
+  #endif
+    // Copy the -xy slices to the memory buffers
+    for (j = 0; j < H.ny_real; j++) {
+      for (i = 0; i < H.nx_real; i++) {
+        id     = cuda_utilities::compute1DIndex(i + H.n_ghost, j + H.n_ghost, minus_zslice, H.nx, H.ny);
+        buf_id = j + i * H.ny_real;
+  #ifdef MPI_CHOLLA
+        // When there are multiple processes, check whether this slice is in
+        // your domain
+        if (minus_zslice >= nz_local_start && minus_zslice < nz_local_start + nz_local) {
+          id = cuda_utilities::compute1DIndex(i + H.n_ghost, j + H.n_ghost, minus_zslice - nz_local_start + H.n_ghost, H.nx,
+                                              H.ny);
+  #endif    // MPI_CHOLLA
+          dataset_buffer_d[buf_id]  = C.density[id];
+          dataset_buffer_mx[buf_id] = C.momentum_x[id];
+          dataset_buffer_my[buf_id] = C.momentum_y[id];
+          dataset_buffer_mz[buf_id] = C.momentum_z[id];
+          dataset_buffer_E[buf_id]  = C.Energy[id];
+  #ifdef SCALAR
+          for (int ii = 0; ii < NSCALARS; ii++) {
+            dataset_buffer_scalar[buf_id + ii * H.nx * H.ny] = C.scalar[id + ii * H.n_cells];
+          }
+  #endif
+  #ifdef MPI_CHOLLA
+        }
+        // if the slice isn't in your domain, just write out zeros
+        else {
+          dataset_buffer_d[buf_id]  = 0;
+          dataset_buffer_mx[buf_id] = 0;
+          dataset_buffer_my[buf_id] = 0;
+          dataset_buffer_mz[buf_id] = 0;
+          dataset_buffer_E[buf_id]  = 0;
+    #ifdef DE
+          dataset_buffer_GE[buf_id] = 0;
+    #endif
+    #ifdef SCALAR
+          for (int ii = 0; ii < NSCALARS; ii++) {
+            dataset_buffer_scalar[buf_id + ii * H.nx * H.ny] = 0;
+          }
+    #endif
+        }
+  #endif  // MPI_CHOLLA
+      }
+    }
+    // Write out the xy datasets for each variable
+    status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_d, "/d_minus_xy");
+    status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_mx, "/mx_minus_xy");
+    status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_my, "/my_minus_xy");
+    status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_mz, "/mz_minus_xy");
+    status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_E, "/E_minus_xy");
+  #ifdef DE
+    status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_GE, "/GE_minus_xy");
+  #endif
+  #ifdef SCALAR
+    status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_scalar, "/scalar_minus_xy");
+  #endif
+    // Free the dataspace id
+    status = H5Sclose(dataspace_id);
+
+    // free the dataset buffers
+    free(dataset_buffer_d);
+    free(dataset_buffer_mx);
+    free(dataset_buffer_my);
+    free(dataset_buffer_mz);
+    free(dataset_buffer_E);
+  #ifdef DE
+    free(dataset_buffer_GE);
+  #endif
+  #ifdef SCALAR
+    free(dataset_buffer_scalar);
+  #endif
+////////////////////////////////////////////////////////////
+// Create the +xy data space for the datasets
+    dims[0]      = nx_dset;
+    dims[1]      = ny_dset;
+    dataspace_id = H5Screate_simple(2, dims, NULL);
+
+    // Allocate memory for the +xy slices
+    dataset_buffer_d  = (Real *)malloc(H.nx_real * H.ny_real * sizeof(Real));
+    dataset_buffer_mx = (Real *)malloc(H.nx_real * H.ny_real * sizeof(Real));
+    dataset_buffer_my = (Real *)malloc(H.nx_real * H.ny_real * sizeof(Real));
+    dataset_buffer_mz = (Real *)malloc(H.nx_real * H.ny_real * sizeof(Real));
+    dataset_buffer_E  = (Real *)malloc(H.nx_real * H.ny_real * sizeof(Real));
+  #ifdef DE
+    dataset_buffer_GE = (Real *)malloc(H.nx_real * H.ny_real * sizeof(Real));
+  #endif
+  #ifdef SCALAR
+    dataset_buffer_scalar = (Real *)malloc(NSCALARS * H.nx_real * H.ny_real * sizeof(Real));
+  #endif
+    // Copy the -xy slices to the memory buffers
+    for (j = 0; j < H.ny_real; j++) {
+      for (i = 0; i < H.nx_real; i++) {
+        id     = cuda_utilities::compute1DIndex(i + H.n_ghost, j + H.n_ghost, plus_zslice, H.nx, H.ny);
+        buf_id = j + i * H.ny_real;
+  #ifdef MPI_CHOLLA
+        // When there are multiple processes, check whether this slice is in
+        // your domain
+        if (plus_zslice >= nz_local_start && plus_zslice < nz_local_start + nz_local) {
+          id = cuda_utilities::compute1DIndex(i + H.n_ghost, j + H.n_ghost, plus_zslice - nz_local_start + H.n_ghost, H.nx,
+                                              H.ny);
+  #endif    // MPI_CHOLLA
+          dataset_buffer_d[buf_id]  = C.density[id];
+          dataset_buffer_mx[buf_id] = C.momentum_x[id];
+          dataset_buffer_my[buf_id] = C.momentum_y[id];
+          dataset_buffer_mz[buf_id] = C.momentum_z[id];
+          dataset_buffer_E[buf_id]  = C.Energy[id];
+  #ifdef SCALAR
+          for (int ii = 0; ii < NSCALARS; ii++) {
+            dataset_buffer_scalar[buf_id + ii * H.nx * H.ny] = C.scalar[id + ii * H.n_cells];
+          }
+  #endif
+  #ifdef MPI_CHOLLA
+        }
+        // if the slice isn't in your domain, just write out zeros
+        else {
+          dataset_buffer_d[buf_id]  = 0;
+          dataset_buffer_mx[buf_id] = 0;
+          dataset_buffer_my[buf_id] = 0;
+          dataset_buffer_mz[buf_id] = 0;
+          dataset_buffer_E[buf_id]  = 0;
+    #ifdef DE
+          dataset_buffer_GE[buf_id] = 0;
+    #endif
+    #ifdef SCALAR
+          for (int ii = 0; ii < NSCALARS; ii++) {
+            dataset_buffer_scalar[buf_id + ii * H.nx * H.ny] = 0;
+          }
+    #endif
+        }
+  #endif  // MPI_CHOLLA
+      }
+    }
+    // Write out the xy datasets for each variable
+    status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_d, "/d_plus_xy");
+    status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_mx, "/mx_plus_xy");
+    status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_my, "/my_plus_xy");
+    status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_mz, "/mz_plus_xy");
+    status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_E, "/E_plus_xy");
+  #ifdef DE
+    status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_GE, "/GE_plus_xy");
+  #endif
+  #ifdef SCALAR
+    status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_scalar, "/scalar_plus_xy");
+  #endif
+    // Free the dataspace id
+    status = H5Sclose(dataspace_id);
+
+    // free the dataset buffers
+    free(dataset_buffer_d);
+    free(dataset_buffer_mx);
+    free(dataset_buffer_my);
+    free(dataset_buffer_mz);
+    free(dataset_buffer_E);
+  #ifdef DE
+    free(dataset_buffer_GE);
+  #endif
+  #ifdef SCALAR
+    free(dataset_buffer_scalar);
+  #endif
+////////////////////////////////////////////////////////////
+
+    // Create the -xz data space for the datasets
+    dims[0]      = nx_dset;
+    dims[1]      = nz_dset;
+    dataspace_id = H5Screate_simple(2, dims, NULL);
+
+    // allocate the memory for the -xz slices
+    dataset_buffer_d  = (Real *)malloc(H.nx_real * H.nz_real * sizeof(Real));
+    dataset_buffer_mx = (Real *)malloc(H.nx_real * H.nz_real * sizeof(Real));
+    dataset_buffer_my = (Real *)malloc(H.nx_real * H.nz_real * sizeof(Real));
+    dataset_buffer_mz = (Real *)malloc(H.nx_real * H.nz_real * sizeof(Real));
+    dataset_buffer_E  = (Real *)malloc(H.nx_real * H.nz_real * sizeof(Real));
+  #ifdef DE
+    dataset_buffer_GE = (Real *)malloc(H.nx_real * H.nz_real * sizeof(Real));
+  #endif
+  #ifdef SCALAR
+    dataset_buffer_scalar = (Real *)malloc(NSCALARS * H.nx_real * H.nz_real * sizeof(Real));
+  #endif
+
+    // Copy the xz slices to the memory buffers
+    for (k = 0; k < H.nz_real; k++) {
+      for (i = 0; i < H.nx_real; i++) {
+        id     = cuda_utilities::compute1DIndex(i + H.n_ghost, minus_yslice, k + H.n_ghost, H.nx, H.ny);
+        buf_id = k + i * H.nz_real;
+  #ifdef MPI_CHOLLA
+        // When there are multiple processes, check whether this slice is in
+        // your domain
+        if (minus_yslice >= ny_local_start && minus_yslice < ny_local_start + ny_local) {
+          id = cuda_utilities::compute1DIndex(i + H.n_ghost, minus_yslice - ny_local_start + H.n_ghost, k + H.n_ghost, H.nx,
+                                              H.ny);
+  #endif    // MPI_CHOLLA
+          dataset_buffer_d[buf_id]  = C.density[id];
+          dataset_buffer_mx[buf_id] = C.momentum_x[id];
+          dataset_buffer_my[buf_id] = C.momentum_y[id];
+          dataset_buffer_mz[buf_id] = C.momentum_z[id];
+          dataset_buffer_E[buf_id]  = C.Energy[id];
+  #ifdef DE
+          dataset_buffer_GE[buf_id] = C.GasEnergy[id];
+  #endif
+  #ifdef SCALAR
+          for (int ii = 0; ii < NSCALARS; ii++) {
+            dataset_buffer_scalar[buf_id + ii * H.nx * H.nz] = C.scalar[id + ii * H.n_cells];
+          }
+  #endif
+  #ifdef MPI_CHOLLA
+        }
+        // if the slice isn't in your domain, just write out zeros
+        else {
+          dataset_buffer_d[buf_id]  = 0;
+          dataset_buffer_mx[buf_id] = 0;
+          dataset_buffer_my[buf_id] = 0;
+          dataset_buffer_mz[buf_id] = 0;
+          dataset_buffer_E[buf_id]  = 0;
+    #ifdef DE
+          dataset_buffer_GE[buf_id] = 0;
+    #endif
+    #ifdef SCALAR
+          for (int ii = 0; ii < NSCALARS; ii++) {
+            dataset_buffer_scalar[buf_id + ii * H.nx * H.nz] = 0;
+          }
+    #endif
+        }
+  #endif  // MPI_CHOLLA
+      }
+    }
+    // Write out the xz datasets for each variable
+    status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_d, "/d_minus_xz");
+    status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_mx, "/mx_minus_xz");
+    status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_my, "/my_minus_xz");
+    status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_mz, "/mz_minus_xz");
+    status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_E, "/E_minus_xz");
+  #ifdef DE
+    status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_GE, "/GE_minus_xz");
+  #endif
+  #ifdef SCALAR
+    status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_scalar, "/scalar_minus_xz");
+  #endif
+
+    // Free the dataspace id
+    status = H5Sclose(dataspace_id);
+
+    // free the dataset buffers
+    free(dataset_buffer_d);
+    free(dataset_buffer_mx);
+    free(dataset_buffer_my);
+    free(dataset_buffer_mz);
+    free(dataset_buffer_E);
+  #ifdef DE
+    free(dataset_buffer_GE);
+  #endif
+  #ifdef SCALAR
+    free(dataset_buffer_scalar);
+  #endif
+////////////////////////////////////////////////////////////
+      // Create the +xz data space for the datasets
+    dims[0]      = nx_dset;
+    dims[1]      = nz_dset;
+    dataspace_id = H5Screate_simple(2, dims, NULL);
+
+    // allocate the memory for the +xz slices
+    dataset_buffer_d  = (Real *)malloc(H.nx_real * H.nz_real * sizeof(Real));
+    dataset_buffer_mx = (Real *)malloc(H.nx_real * H.nz_real * sizeof(Real));
+    dataset_buffer_my = (Real *)malloc(H.nx_real * H.nz_real * sizeof(Real));
+    dataset_buffer_mz = (Real *)malloc(H.nx_real * H.nz_real * sizeof(Real));
+    dataset_buffer_E  = (Real *)malloc(H.nx_real * H.nz_real * sizeof(Real));
+  #ifdef DE
+    dataset_buffer_GE = (Real *)malloc(H.nx_real * H.nz_real * sizeof(Real));
+  #endif
+  #ifdef SCALAR
+    dataset_buffer_scalar = (Real *)malloc(NSCALARS * H.nx_real * H.nz_real * sizeof(Real));
+  #endif
+
+    // Copy the xz slices to the memory buffers
+    for (k = 0; k < H.nz_real; k++) {
+      for (i = 0; i < H.nx_real; i++) {
+        id     = cuda_utilities::compute1DIndex(i + H.n_ghost, plus_yslice, k + H.n_ghost, H.nx, H.ny);
+        buf_id = k + i * H.nz_real;
+  #ifdef MPI_CHOLLA
+        // When there are multiple processes, check whether this slice is in
+        // your domain
+        if (plus_yslice >= ny_local_start && plus_yslice < ny_local_start + ny_local) {
+          id = cuda_utilities::compute1DIndex(i + H.n_ghost, plus_yslice - ny_local_start + H.n_ghost, k + H.n_ghost, H.nx,
+                                              H.ny);
+  #endif    // MPI_CHOLLA
+          dataset_buffer_d[buf_id]  = C.density[id];
+          dataset_buffer_mx[buf_id] = C.momentum_x[id];
+          dataset_buffer_my[buf_id] = C.momentum_y[id];
+          dataset_buffer_mz[buf_id] = C.momentum_z[id];
+          dataset_buffer_E[buf_id]  = C.Energy[id];
+  #ifdef DE
+          dataset_buffer_GE[buf_id] = C.GasEnergy[id];
+  #endif
+  #ifdef SCALAR
+          for (int ii = 0; ii < NSCALARS; ii++) {
+            dataset_buffer_scalar[buf_id + ii * H.nx * H.nz] = C.scalar[id + ii * H.n_cells];
+          }
+  #endif
+  #ifdef MPI_CHOLLA
+        }
+        // if the slice isn't in your domain, just write out zeros
+        else {
+          dataset_buffer_d[buf_id]  = 0;
+          dataset_buffer_mx[buf_id] = 0;
+          dataset_buffer_my[buf_id] = 0;
+          dataset_buffer_mz[buf_id] = 0;
+          dataset_buffer_E[buf_id]  = 0;
+    #ifdef DE
+          dataset_buffer_GE[buf_id] = 0;
+    #endif
+    #ifdef SCALAR
+          for (int ii = 0; ii < NSCALARS; ii++) {
+            dataset_buffer_scalar[buf_id + ii * H.nx * H.nz] = 0;
+          }
+    #endif
+        }
+  #endif  // MPI_CHOLLA
+      }
+    }
+    // Write out the xz datasets for each variable
+    status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_d, "/d_plus_xz");
+    status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_mx, "/mx_plus_xz");
+    status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_my, "/my_plus_xz");
+    status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_mz, "/mz_plus_xz");
+    status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_E, "/E_plus_xz");
+  #ifdef DE
+    status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_GE, "/GE_plus_xz");
+  #endif
+  #ifdef SCALAR
+    status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_scalar, "/scalar_plus_xz");
+  #endif
+
+    // Free the dataspace id
+    status = H5Sclose(dataspace_id);
+
+    // free the dataset buffers
+    free(dataset_buffer_d);
+    free(dataset_buffer_mx);
+    free(dataset_buffer_my);
+    free(dataset_buffer_mz);
+    free(dataset_buffer_E);
+  #ifdef DE
+    free(dataset_buffer_GE);
+  #endif
+  #ifdef SCALAR
+    free(dataset_buffer_scalar);
+  #endif
+////////////////////////////////////////////////////////////
+    // Create the -yz data space for the datasets
+    dims[0]      = ny_dset;
+    dims[1]      = nz_dset;
+    dataspace_id = H5Screate_simple(2, dims, NULL);
+
+    // allocate the memory for the -yz slices
+    dataset_buffer_d  = (Real *)malloc(H.ny_real * H.nz_real * sizeof(Real));
+    dataset_buffer_mx = (Real *)malloc(H.ny_real * H.nz_real * sizeof(Real));
+    dataset_buffer_my = (Real *)malloc(H.ny_real * H.nz_real * sizeof(Real));
+    dataset_buffer_mz = (Real *)malloc(H.ny_real * H.nz_real * sizeof(Real));
+    dataset_buffer_E  = (Real *)malloc(H.ny_real * H.nz_real * sizeof(Real));
+  #ifdef DE
+    dataset_buffer_GE = (Real *)malloc(H.ny_real * H.nz_real * sizeof(Real));
+  #endif
+  #ifdef SCALAR
+    dataset_buffer_scalar = (Real *)malloc(NSCALARS * H.ny_real * H.nz_real * sizeof(Real));
+  #endif
+
+    // Copy the yz slices to the memory buffers
+    for (k = 0; k < H.nz_real; k++) {
+      for (j = 0; j < H.ny_real; j++) {
+        id     = cuda_utilities::compute1DIndex(minus_xslice, j + H.n_ghost, k + H.n_ghost, H.nx, H.ny);
+        buf_id = k + j * H.nz_real;
+  #ifdef MPI_CHOLLA
+        // When there are multiple processes, check whether this slice is in
+        // your domain
+        if (minus_xslice >= nx_local_start && minus_xslice < nx_local_start + nx_local) {
+          id = cuda_utilities::compute1DIndex(minus_xslice - nx_local_start, j + H.n_ghost, k + H.n_ghost, H.nx, H.ny);
+  #endif    // MPI_CHOLLA
+          dataset_buffer_d[buf_id]  = C.density[id];
+          dataset_buffer_mx[buf_id] = C.momentum_x[id];
+          dataset_buffer_my[buf_id] = C.momentum_y[id];
+          dataset_buffer_mz[buf_id] = C.momentum_z[id];
+          dataset_buffer_E[buf_id]  = C.Energy[id];
+  #ifdef DE
+          dataset_buffer_GE[buf_id] = C.GasEnergy[id];
+  #endif
+  #ifdef SCALAR
+          for (int ii = 0; ii < NSCALARS; ii++) {
+            dataset_buffer_scalar[buf_id + ii * H.ny * H.nz] = C.scalar[id + ii * H.n_cells];
+          }
+  #endif
+  #ifdef MPI_CHOLLA
+        }
+        // if the slice isn't in your domain, just write out zeros
+        else {
+          dataset_buffer_d[buf_id]  = 0;
+          dataset_buffer_mx[buf_id] = 0;
+          dataset_buffer_my[buf_id] = 0;
+          dataset_buffer_mz[buf_id] = 0;
+          dataset_buffer_E[buf_id]  = 0;
+    #ifdef DE
+          dataset_buffer_GE[buf_id] = 0;
+    #endif
+    #ifdef SCALAR
+          for (int ii = 0; ii < NSCALARS; ii++) {
+            dataset_buffer_scalar[buf_id + ii * H.ny * H.nz] = 0;
+          }
+    #endif
+        }
+  #endif  // MPI_CHOLLA
+      }
+    }
+    // Write out the yz datasets for each variable
+    status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_d, "/d_minus_yz");
+    status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_mx, "/mx_minus_yz");
+    status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_my, "/my_minus_yz");
+    status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_mz, "/mz_minus_yz");
+    status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_E, "/E_minus_yz");
+#ifdef DE
+    status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_GE, "/GE_minus_yz");
+  #endif
+  #ifdef SCALAR
+    status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_scalar, "/scalar_minus_yz");
+  #endif
+
+    // Free the dataspace id
+    status = H5Sclose(dataspace_id);
+
+    // free the dataset buffers
+    free(dataset_buffer_d);
+    free(dataset_buffer_mx);
+    free(dataset_buffer_my);
+    free(dataset_buffer_mz);
+    free(dataset_buffer_E);
+  #ifdef DE
+    free(dataset_buffer_GE);
+  #endif
+  #ifdef SCALAR
+    free(dataset_buffer_scalar);
+  #endif
+////////////////////////////////////////////////////////////
+    // Create the +yz data space for the datasets
+    dims[0]      = ny_dset;
+    dims[1]      = nz_dset;
+    dataspace_id = H5Screate_simple(2, dims, NULL);
+
+    // allocate the memory for the +yz slices
+    dataset_buffer_d  = (Real *)malloc(H.ny_real * H.nz_real * sizeof(Real));
+    dataset_buffer_mx = (Real *)malloc(H.ny_real * H.nz_real * sizeof(Real));
+    dataset_buffer_my = (Real *)malloc(H.ny_real * H.nz_real * sizeof(Real));
+    dataset_buffer_mz = (Real *)malloc(H.ny_real * H.nz_real * sizeof(Real));
+    dataset_buffer_E  = (Real *)malloc(H.ny_real * H.nz_real * sizeof(Real));
+  #ifdef DE
+    dataset_buffer_GE = (Real *)malloc(H.ny_real * H.nz_real * sizeof(Real));
+  #endif
+  #ifdef SCALAR
+    dataset_buffer_scalar = (Real *)malloc(NSCALARS * H.ny_real * H.nz_real * sizeof(Real));
+  #endif
+
+    // Copy the yz slices to the memory buffers
+    for (k = 0; k < H.nz_real; k++) {
+      for (j = 0; j < H.ny_real; j++) {
+        id     = cuda_utilities::compute1DIndex(plus_xslice, j + H.n_ghost, k + H.n_ghost, H.nx, H.ny);
+        buf_id = k + j * H.nz_real;
+  #ifdef MPI_CHOLLA
+        // When there are multiple processes, check whether this slice is in
+        // your domain
+        if (plus_xslice >= nx_local_start && plus_xslice < nx_local_start + nx_local) {
+          id = cuda_utilities::compute1DIndex(plus_xslice - nx_local_start, j + H.n_ghost, k + H.n_ghost, H.nx, H.ny);
+  #endif    // MPI_CHOLLA
+          dataset_buffer_d[buf_id]  = C.density[id];
+          dataset_buffer_mx[buf_id] = C.momentum_x[id];
+          dataset_buffer_my[buf_id] = C.momentum_y[id];
+          dataset_buffer_mz[buf_id] = C.momentum_z[id];
+          dataset_buffer_E[buf_id]  = C.Energy[id];
+  #ifdef DE
+          dataset_buffer_GE[buf_id] = C.GasEnergy[id];
+  #endif
+  #ifdef SCALAR
+          for (int ii = 0; ii < NSCALARS; ii++) {
+            dataset_buffer_scalar[buf_id + ii * H.ny * H.nz] = C.scalar[id + ii * H.n_cells];
+          }
+  #endif
+  #ifdef MPI_CHOLLA
+        }
+        // if the slice isn't in your domain, just write out zeros
+        else {
+          dataset_buffer_d[buf_id]  = 0;
+          dataset_buffer_mx[buf_id] = 0;
+          dataset_buffer_my[buf_id] = 0;
+          dataset_buffer_mz[buf_id] = 0;
+          dataset_buffer_E[buf_id]  = 0;
+    #ifdef DE
+          dataset_buffer_GE[buf_id] = 0;
+    #endif
+    #ifdef SCALAR
+          for (int ii = 0; ii < NSCALARS; ii++) {
+            dataset_buffer_scalar[buf_id + ii * H.ny * H.nz] = 0;
+          }
+    #endif
+        }
+  #endif  // MPI_CHOLLA
+      }
+    }
+    // Write out the yz datasets for each variable
+    status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_d, "/d_plus_yz");
+    status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_mx, "/mx_plus_yz");
+    status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_my, "/my_plus_yz");
+    status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_mz, "/mz_plus_yz");
+    status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_E, "/E_plus_yz");
+#ifdef DE
+    status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_GE, "/GE_plus_yz");
+  #endif
+  #ifdef SCALAR
+    status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_scalar, "/scalar_plus_yz");
+  #endif
+
+    // Free the dataspace id
+    status = H5Sclose(dataspace_id);
+
+    // free the dataset buffers
+    free(dataset_buffer_d);
+    free(dataset_buffer_mx);
+    free(dataset_buffer_my);
+    free(dataset_buffer_mz);
+    free(dataset_buffer_E);
+  #ifdef DE
+    free(dataset_buffer_GE);
+  #endif
+  #ifdef SCALAR
+    free(dataset_buffer_scalar);
+  #endif
   } else {
     printf("Slice write only works for 3D data.\n");
   }

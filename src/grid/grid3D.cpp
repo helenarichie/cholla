@@ -550,7 +550,19 @@ Real Grid3D::Update_Hydro_Grid()
 
   #ifdef DUST
   // ==Apply dust from dust/dust_cuda.h==
-  Dust_Update(C.device, H.nx, H.ny, H.nz, H.n_ghost, H.n_fields, H.dt, gama, H.grain_radius);
+  #ifdef OUTFLOW_ANALYSIS
+  Real mass_mixed, mass_hot;
+  Real mass_mixed_tot, mass_hot_tot;
+  #endif
+  Dust_Update(C.device, H.nx, H.ny, H.nz, H.n_ghost, H.n_fields, H.dt, gama, H.grain_radius, &mass_mixed, &mass_hot);
+  #ifdef OUTFLOW_ANALYSIS
+  #ifdef MPI_CHOLLA
+  MPI_Barrier(world);
+  MPI_Allreduce(&mass_mixed, &mass_mixed_tot, 6, MPI_CHREAL, MPI_SUM, world);
+  MPI_Allreduce(&mass_hot, &mass_hot_tot, 6, MPI_CHREAL, MPI_SUM, world);
+  #endif  // MPI_CHOLLA
+  chprintf("** Mixed sputtered mass: %e  Hot sputtered mass: %e \n", mass_mixed_tot, mass_hot_tot);
+  #endif  // OUTFLOW_ANALYSIS
   #endif  // DUST
 
   #ifdef CLOUD_TRACKING
@@ -640,17 +652,19 @@ Real Grid3D::Update_Hydro_Grid()
   Real mass_dust, rate_dust, mass_dust_bndry;
   #endif  // DUST
 
-  Outflow_Analysis(C.device, H.nx, H.ny, H.nz, H.dx, H.dy, H.dz, H.n_ghost, H.n_fields, 1e-23, &mass_cloud, &mass_dust,
+  Outflow_Analysis(C.device, H.nx, H.ny, H.nz, 640, 320, 320, H.dx, H.dy, H.dz, H.n_ghost, H.n_fields, 1e-23, &mass_cloud, &mass_dust,
                    &rate_cloud, &rate_dust, &mass_cloud_bndry, &mass_dust_bndry);
+
+  // printf("cloud mass: %e\n", mass_cloud_bndry);
   
   #ifdef MPI_CHOLLA
+  MPI_Barrier(world);
   Real arr_unreduced[6] = {mass_cloud, rate_cloud, mass_cloud_bndry, mass_dust, rate_dust, mass_dust_bndry};
   Real arr_reduced[6];
   MPI_Allreduce(&arr_unreduced, &arr_reduced, 6, MPI_CHREAL, MPI_SUM, world);
-  MPI_Barrier(world);
   #endif  // MPI_CHOLLA
 
-  chprintf("@@ Cloud mass: %e  Cloud rate: %e  Cloud mass bndry: %e  Dust mass: %e  Dust rate: %e  Dust mass bndry: %e \n", arr_reduced[0], arr_reduced[1], arr_reduced[2], arr_reduced[3], arr_reduced[4], arr_reduced[5]);
+  chprintf("@@ Cloud mass: %e  Dust mass: %e \n", arr_reduced[0], arr_reduced[3]);
   #endif  // OUTFLOW_ANALYSIS
 
 #endif  // CUDA

@@ -6,11 +6,11 @@
     #include "../utils/gpu.hpp"
 
 
-void Outflow_Analysis(Real *dev_conserved, int nx, int ny, int nz, Real dx, Real dy, Real dz, int n_ghost, 
+void Outflow_Analysis(Real *dev_conserved, int nx, int ny, int nz, int nx_real, int ny_real, int nz_real, Real dx, Real dy, Real dz, int n_ghost, 
                       int n_fields, Real density_cloud_init, Real *mass_cloud, Real *mass_dust, Real *rate_cloud, 
                       Real *rate_dust, Real *mass_cloud_bndry, Real *mass_dust_bndry);
 
-__global__ void Outflow_Analysis_Kernel(Real *dev_conserved, int nx, int ny, int nz, Real dx, Real dy, Real dz, int n_ghost, 
+__global__ void Outflow_Analysis_Kernel(Real *dev_conserved, int nx, int ny, int nz, int nx_real, int ny_real, int nz_real, Real dx, Real dy, Real dz, int n_ghost, 
                                         int n_fields, Real density_cloud_init, Real *mass_cloud, Real *mass_dust, 
                                         Real *rate_cloud, Real *rate_dust, Real *mass_cloud_bndry, Real *mass_dust_bndry);
 
