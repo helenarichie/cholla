@@ -17,7 +17,6 @@
 #include "../global/global_cuda.h"
 #include "../utils/gpu.hpp"
 
-#ifdef CUDA
 /*!
  * \brief Namespace to contain device resident reduction functions. Includes
  * functions and kernels for array reduction, warp level, block level, and
@@ -193,7 +192,7 @@ inline __device__ double decode(long long val)
   }
   return bit_cast<double>(val);
 }
-  #endif  // O_HIP
+#endif  // O_HIP
 /*!
  * \brief Perform an atomic reduction to find the maximum value of `val`
  *
@@ -205,12 +204,12 @@ inline __device__ double decode(long long val)
  */
 inline __device__ float atomicMaxBits(float* address, float val)
 {
-  #ifdef O_HIP
+#ifdef O_HIP
   return atomicMax(address, val);
-  #else   // O_HIP
+#else   // O_HIP
   int old = atomicMax((int*)address, encode(val));
   return decode(old);
-  #endif  // O_HIP
+#endif  // O_HIP
 }
 
 /*!
@@ -224,12 +223,12 @@ inline __device__ float atomicMaxBits(float* address, float val)
  */
 inline __device__ double atomicMaxBits(double* address, double val)
 {
-  #ifdef O_HIP
+#ifdef O_HIP
   return atomicMax(address, val);
-  #else   // O_HIP
+#else   // O_HIP
   long long old = atomicMax((long long*)address, encode(val));
   return decode(old);
-  #endif  // O_HIP
+#endif  // O_HIP
 }
 
 /*!
@@ -243,12 +242,12 @@ inline __device__ double atomicMaxBits(double* address, double val)
  */
 inline __device__ float atomicMinBits(float* address, float val)
 {
-  #ifdef O_HIP
+#ifdef O_HIP
   return atomicMin(address, val);
-  #else   // O_HIP
+#else   // O_HIP
   int old = atomicMin((int*)address, encode(val));
   return decode(old);
-  #endif  // O_HIP
+#endif  // O_HIP
 }
 
 /*!
@@ -262,12 +261,12 @@ inline __device__ float atomicMinBits(float* address, float val)
  */
 inline __device__ double atomicMinBits(double* address, double val)
 {
-  #ifdef O_HIP
+#ifdef O_HIP
   return atomicMin(address, val);
-  #else   // O_HIP
+#else   // O_HIP
   long long old = atomicMin((long long*)address, encode(val));
   return decode(old);
-  #endif  // O_HIP
+#endif  // O_HIP
 }
 // =====================================================================
 
@@ -377,4 +376,3 @@ __global__ void kernelReduceMax(Real* in, Real* out, size_t N);
 __global__ void Kernel_Reduce_Add(Real* in, Real* out, size_t N);
 // =====================================================================
 }  // namespace reduction_utilities
-#endif  // CUDA

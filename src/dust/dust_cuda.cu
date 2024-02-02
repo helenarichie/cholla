@@ -76,7 +76,7 @@ __global__ void Dust_Kernel(Real *dev_conserved, int nx, int ny, int nz, int n_g
 
   // define integration variables
   Real dd_dt;          // instantaneous rate of change in dust density
-  Real dd;             // change in dust density at current timestep
+  Real dd = 0;             // change in dust density at current timestep
   Real dd_max = 0.01;  // allowable percentage of dust density increase
   Real dt_sub;         // refined timestep
 

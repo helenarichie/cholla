@@ -13,7 +13,6 @@
 // Local Includes
 #include "../utils/reduction_utilities.h"
 
-#ifdef CUDA
 namespace reduction_utilities
 {
 // =====================================================================
@@ -54,4 +53,3 @@ __global__ void Kernel_Reduce_Add(Real* in, Real* out, size_t N)
   Grid_Reduce_Add(sum_stride, out);
 }
 }  // namespace reduction_utilities
-#endif  // CUDA

@@ -1,6 +1,7 @@
 #ifdef OUTFLOW_ANALYSIS
   // STL includes
   #include <stdio.h>
+  #include <math.h> 
 
   #include <cstdio>
   #include <fstream>
@@ -81,7 +82,6 @@ __global__ void Outflow_Analysis_Kernel(Real *dev_conserved, int nx, int ny, int
 
   for (size_t id = threadIdx.x + blockIdx.x * blockDim.x; id < n_cells; id += blockDim.x * gridDim.x) {
     cuda_utilities::compute3DIndices(id, nx, ny, xid, yid, zid);
-    // Noh boundary kernel has the answer
     // grid cells
     if (xid > n_ghost - 1 && xid < nx - n_ghost && yid > n_ghost - 1 && yid < ny - n_ghost && zid > n_ghost - 1 &&
         zid < nz - n_ghost) {
@@ -91,14 +91,31 @@ __global__ void Outflow_Analysis_Kernel(Real *dev_conserved, int nx, int ny, int
       density_dust = dev_conserved[id + n_cells * grid_enum::dust_density];
       #endif  // DUST
 
-      if ((density_gas * DENSITY_UNIT) >= (density_cloud_init / 3)) {
-        mass_cloud_stride += density_gas * dx * dy * dz;
+      if (isnan(density_dust)) {
+        printf("there's a nan %d %d %d\n", nx, ny, nz);
       }
+
       #ifdef DUST
       mass_dust_stride += density_dust * dx * dy * dz;
       #endif  // DUST
+
+      if ((density_gas * DENSITY_UNIT) >= (density_cloud_init / 3)) {
+        mass_cloud_stride += density_gas * dx * dy * dz;
+      }
     }
   }
+  
+  __syncthreads();
+
+  reduction_utilities::Grid_Reduce_Add(mass_cloud_stride, mass_cloud);
+  reduction_utilities::Grid_Reduce_Add(rate_cloud_stride, rate_cloud);
+  reduction_utilities::Grid_Reduce_Add(mass_cloud_bndry_stride, mass_cloud_bndry);
+  #ifdef DUST
+  //printf("mass dust: %e\n", mass_dust);
+  reduction_utilities::Grid_Reduce_Add(mass_dust_stride, mass_dust);
+  reduction_utilities::Grid_Reduce_Add(rate_dust_stride, rate_dust);
+  reduction_utilities::Grid_Reduce_Add(mass_dust_bndry_stride, mass_dust_bndry);
+  #endif  // DUST
 
   /*
   // int id, xid, yid, zid, gid;
@@ -270,16 +287,6 @@ __global__ void Outflow_Analysis_Kernel(Real *dev_conserved, int nx, int ny, int
     }
   }
   */
-  __syncthreads();
-
-  reduction_utilities::Grid_Reduce_Add(mass_cloud_stride, mass_cloud);
-  reduction_utilities::Grid_Reduce_Add(rate_cloud_stride, rate_cloud);
-  reduction_utilities::Grid_Reduce_Add(mass_cloud_bndry_stride, mass_cloud_bndry);
-  #ifdef DUST
-  reduction_utilities::Grid_Reduce_Add(mass_dust_stride, mass_dust);
-  reduction_utilities::Grid_Reduce_Add(rate_dust_stride, rate_dust);
-  reduction_utilities::Grid_Reduce_Add(mass_dust_bndry_stride, mass_dust_bndry);
-  #endif  // DUST
 }
 
 #endif  // OUTFLOW_ANALYSIS

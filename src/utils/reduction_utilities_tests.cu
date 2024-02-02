@@ -35,7 +35,6 @@ TEST(tALLKernelReduceMax, CorrectInputExpectCorrectOutput)
   // ====================================
   size_t const gridSize = 64;
   size_t const size     = std::pow(gridSize, 3);
-  ;
   Real const maxValue = 4;
   std::vector<Real> host_grid(size);
 
@@ -100,11 +99,9 @@ TEST(tALLKernelReduceSum, CorrectInputExpectCorrectOutput)
   hipLaunchKernelGGL(reduction_utilities::Kernel_Reduce_Add, launch_params.numBlocks, launch_params.threadsPerBlock, 0,
                      0, dev_grid.data(), dev_sum.data(), host_grid.size());
   cudaDeviceSynchronize();
-  CudaCheckError();
 
   dev_sum.cpyDeviceToHost(host_sum);
-  CudaCheckError();
 
   // Perform comparison
-  testingUtilities::checkResults(size, host_sum[0], "sum found");
+  testing_utilities::Check_Results(size, host_sum[0], "sum found");
 }

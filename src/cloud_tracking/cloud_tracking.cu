@@ -36,7 +36,6 @@ void Cloud_Velocity_Reduction(Real *dev_conserved, int nx, int ny, int nz, Real 
                      nx, ny, nz, dx, dy, dz, n_ghost, n_fields, density_cloud_init, density_wind_init,
                      dev_mass_cloud.data(), dev_integrand_cloud.data());
   cudaDeviceSynchronize();
-  CudaCheckError();
 
   // Copy result of reductions from device to host
   dev_mass_cloud.cpyDeviceToHost(host_mass_cloud);
@@ -55,7 +54,6 @@ void Update_Grid_Frame(Real *dev_conserved, int nx, int ny, int nz, int n_ghost,
   hipLaunchKernelGGL(Frame_Shift_Kernel, launchParams.numBlocks, launchParams.threadsPerBlock, 0, 0, dev_conserved, nx,
                      ny, nz, n_ghost, n_fields, velocity_x_cloud_avg);
   cudaDeviceSynchronize();
-  CudaCheckError();
 }
 
 __global__ void Cloud_Reduction_Kernel(Real *dev_conserved, int nx, int ny, int nz, Real dx, Real dy, Real dz,
