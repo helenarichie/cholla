@@ -69,7 +69,7 @@ __global__ void Outflow_Analysis_Kernel(Real *dev_conserved, int nx, int ny, int
   int xid, yid, zid, n_cells;
   n_cells = nx * ny * nz;
 
-  Real density_gas, velocity_x, velocity_y, velocity_z;
+  Real density_gas;
   Real mass_cloud_stride = 0.0;
   Real rate_cloud_stride = 0.0;
   Real mass_cloud_bndry_stride = 0.0;
@@ -91,9 +91,9 @@ __global__ void Outflow_Analysis_Kernel(Real *dev_conserved, int nx, int ny, int
       density_dust = dev_conserved[id + n_cells * grid_enum::dust_density];
       #endif  // DUST
 
-      if (isnan(density_dust)) {
-        printf("there's a nan %d %d %d\n", nx, ny, nz);
-      }
+      // if (isnan(density_dust)) {
+        // printf("there's a nan %d %d %d\n", nx, ny, nz);
+      // }
 
       #ifdef DUST
       mass_dust_stride += density_dust * dx * dy * dz;
@@ -112,7 +112,7 @@ __global__ void Outflow_Analysis_Kernel(Real *dev_conserved, int nx, int ny, int
   reduction_utilities::Grid_Reduce_Add(mass_cloud_bndry_stride, mass_cloud_bndry);
   #ifdef DUST
   //printf("mass dust: %e\n", mass_dust);
-  reduction_utilities::Grid_Reduce_Add(mass_dust_stride, mass_dust);
+  // reduction_utilities::Grid_Reduce_Add(mass_dust_stride, mass_dust);
   reduction_utilities::Grid_Reduce_Add(rate_dust_stride, rate_dust);
   reduction_utilities::Grid_Reduce_Add(mass_dust_bndry_stride, mass_dust_bndry);
   #endif  // DUST

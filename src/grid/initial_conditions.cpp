@@ -1346,7 +1346,7 @@ void Grid3D::Clouds(struct Parameters P)
   }
 
   n_bg   = 1.0e-2;
-  n_cl   = 10;
+  n_cl   = 1.0e-2;
   rho_bg = n_bg * mu * MP / DENSITY_UNIT;
   rho_cl = n_cl * mu * MP / DENSITY_UNIT;
 #ifdef CLOUD_TRACKING
@@ -1381,7 +1381,6 @@ void Grid3D::Clouds(struct Parameters P)
     kstart = 0;
     kend   = H.nz;
   }
-  printf("rhocl: %e\n", rho_cl * 1e-2);
 
   // set initial values of conserved variables
   for (k = kstart; k < kend; k++) {
@@ -1424,6 +1423,9 @@ void Grid3D::Clouds(struct Parameters P)
 #ifdef SCALAR
   #ifdef DUST
             C.host[id + H.n_cells * grid_enum::dust_density] = rho_cl * 1e-2;
+            if (isnan(C.host[id + H.n_cells * grid_enum::dust_density])) {
+              printf("there's a nan in IC %d %d %d\n", i, j, k);
+            }
   #endif  // DUST
 #endif    // SCALAR
           }

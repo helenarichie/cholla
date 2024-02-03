@@ -10,6 +10,7 @@
 
   // STL includes
   #include <stdio.h>
+  #include <math.h>
 
   #include <cstdio>
   #include <fstream>
@@ -84,6 +85,11 @@ __global__ void Dust_Kernel(Real *dev_conserved, int nx, int ny, int nz, int n_g
     // get conserved quanitites
     density_gas  = dev_conserved[id + n_cells * grid_enum::density];
     density_dust = dev_conserved[id + n_cells * grid_enum::dust_density];
+
+    if (isnan(density_dust)) {
+      printf("there's a nan in dust %d %d %d\n", nx, ny, nz);
+      // dev_conserved[id + n_cells * grid_enum::dust_density] = 5e6;
+    }
 
     // convert mass density to number density
     number_density = density_gas * DENSITY_UNIT / (mu * MP);
