@@ -1355,7 +1355,7 @@ void Grid3D::Clouds(struct Parameters P)
   printf("Cloud initial density: %e\n", P.density_cloud_init);
   printf("Wind initial density: %e\n", P.density_wind_init);
 #endif
-  vx_bg = 1000 * TIME_UNIT / KPC;
+  vx_bg = 100 * TIME_UNIT / KPC;
   // vx_c  = -200*TIME_UNIT/KPC; // convert from km/s to kpc/kyr
   vx_cl = 0 * TIME_UNIT / KPC;
   vy_bg = vy_cl = 0.0;

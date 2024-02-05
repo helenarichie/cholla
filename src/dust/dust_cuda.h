@@ -27,7 +27,7 @@
  * \param[in] dt Simulation timestep
  * \param[in] gamma Specific heat ratio
  */
-void Dust_Update(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields, Real dt, Real gamma,
+void Dust_Update(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields, Real dx, Real dy, Real dz, Real dt, Real gamma,
                  Real grain_radius, Real *mass_hot, Real *mass_mixed);
 
 /*!
@@ -43,7 +43,7 @@ void Dust_Update(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n
  * \param[in] dt Simulation timestep
  * \param[in] gamma Specific heat ratio
  */
-__global__ void Dust_Kernel(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields, Real dt, Real gamma,
+__global__ void Dust_Kernel(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields, Real dx, Real dy, Real dz, Real dt, Real gamma,
                             Real grain_radius, Real *mass_hot, Real *mass_mixed);
 
 /*!

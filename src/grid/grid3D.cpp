@@ -169,8 +169,11 @@ void Grid3D::Initialize(struct Parameters *P)
 #endif                     // AVERAGE_SLOW_CELLS
 
 #ifdef CLOUD_TRACKING
-  H.density_cloud_init = P->density_cloud_init;
   H.density_wind_init  = P->density_wind_init;
+#endif
+
+#if defined(CLOUD_TRACKING) || defined(OUTFLOW_ANALYSIS)
+  H.density_cloud_init = P->density_cloud_init;
 #endif
 
 #ifndef MPI_CHOLLA
@@ -540,26 +543,22 @@ Real Grid3D::Update_Hydro_Grid()
   Real mass_mixed, mass_hot;
   Real mass_mixed_tot, mass_hot_tot;
   #endif
-  Dust_Update(C.device, H.nx, H.ny, H.nz, H.n_ghost, H.n_fields, H.dt, gama, H.grain_radius, &mass_mixed, &mass_hot);
+  Dust_Update(C.device, H.nx, H.ny, H.nz, H.n_ghost, H.n_fields, H.dx, H.dy, H.dz, H.dt, gama, H.grain_radius, &mass_mixed, &mass_hot);
   #ifdef OUTFLOW_ANALYSIS
   #ifdef MPI_CHOLLA
   MPI_Barrier(world);
-  MPI_Allreduce(&mass_mixed, &mass_mixed_tot, 6, MPI_CHREAL, MPI_SUM, world);
-  MPI_Allreduce(&mass_hot, &mass_hot_tot, 6, MPI_CHREAL, MPI_SUM, world);
+  MPI_Allreduce(&mass_mixed, &mass_mixed_tot, 1, MPI_CHREAL, MPI_SUM, world);
+  MPI_Allreduce(&mass_hot, &mass_hot_tot, 1, MPI_CHREAL, MPI_SUM, world);
   #endif  // MPI_CHOLLA
-  printf("** Mixed mass %e \n", mass_mixed);
-  printf("** Mixed mass %e \n", mass_hot);
   chprintf("** Mixed sputtered mass: %e  Hot sputtered mass: %e \n", mass_mixed_tot, mass_hot_tot);
   #endif  // OUTFLOW_ANALYSIS
-  #endif  // DUST
+#endif  // DUST
 
   #ifdef CLOUD_TRACKING
   Real mass_cloud, integrand_cloud, velocity_x_cloud_avg, mass_cloud_tot;
   // Do the grid-wide reduction to get the sum of rho*vx*V and the total mass for the entire cloud
   Cloud_Velocity_Reduction(C.device, H.nx, H.ny, H.nz, H.dx, H.dy, H.dz, H.n_ghost, H.n_fields, H.density_cloud_init,
                            H.density_wind_init, &mass_cloud, &integrand_cloud);
-
-  //printf("before mpi: %e\n", integrand_cloud/mass_cloud);
 
     #ifdef MPI_CHOLLA
 
@@ -568,46 +567,6 @@ Real Grid3D::Update_Hydro_Grid()
 
   MPI_Allreduce(&integrand_cloud, &integrand_reduced, 1, MPI_CHREAL, MPI_SUM, world);
   MPI_Allreduce(&mass_cloud, &mass_reduced, 1, MPI_CHREAL, MPI_SUM, world);
-  
-  // Perform the MPI sum reduction
-
-  // Initialize buffer for root to hold each process's partial integrands and masses
-  /*Real *integrands_cloud = NULL;
-  Real *masses_cloud     = NULL;
-  if (procID == root) {
-    integrands_cloud = (Real *)malloc(sizeof(Real) * nproc);
-    masses_cloud     = (Real *)malloc(sizeof(Real) * nproc);
-  }
-
-  // Gather each process's integrand and mass into buffer
-  MPI_Gather(&integrand_cloud, 1, MPI_CHREAL, integrands_cloud, 1, MPI_CHREAL, root, world);
-  MPI_Gather(&mass_cloud, 1, MPI_CHREAL, masses_cloud, 1, MPI_CHREAL, root, world);
-
-  // Root process gets the total mass and integrand and calculates the mass-weighted average velocity
-  if (procID == root) {
-    Real root_integrand_cloud = 0;
-    Real root_mass_cloud      = 0;
-    for (int i = 0; i < nproc; i++) {
-      printf("different velocities: %e\n", integrands_cloud[i]/masses_cloud[i]);
-      root_integrand_cloud += integrands_cloud[i];
-      root_mass_cloud += masses_cloud[i];
-    }
-    // Calculate the mass-averaged x-velocity (Shin et al. (2008) eq. 9)
-    if ((root_integrand_cloud == 0) or (root_mass_cloud == 0)) {
-      velocity_x_cloud_avg = 0;
-    } else {
-      velocity_x_cloud_avg = root_integrand_cloud / root_mass_cloud;
-    }
-    mass_cloud_tot = root_mass_cloud;
-  }
-
-  // Send the total values to all processes
-  MPI_Bcast(&velocity_x_cloud_avg, 1, MPI_CHREAL, root, world);
-  MPI_Bcast(&mass_cloud_tot, 1, MPI_CHREAL, root, world);
-
-  free(integrands_cloud);
-  free(masses_cloud);
-  */ 
 
     #endif  // MPI_CHOLLA
 
@@ -634,28 +593,22 @@ Real Grid3D::Update_Hydro_Grid()
 
   #endif  // CLOUD_TRACKING
 
-  #ifdef OUTFLOW_ANALYSIS
-  Real mass_cloud, rate_cloud, mass_cloud_bndry;
   #ifdef DUST
-  Real mass_dust, rate_dust, mass_dust_bndry;
-  #endif  // DUST
+  #ifdef OUTFLOW_ANALYSIS
+  Real mass_cloud, mass_dust = 0;
 
-  Outflow_Analysis(C.device, H.nx, H.ny, H.nz, 640, 320, 320, H.dx, H.dy, H.dz, H.n_ghost, H.n_fields, 1e-23, &mass_cloud, &mass_dust,
-                   &rate_cloud, &rate_dust, &mass_cloud_bndry, &mass_dust_bndry);
+  Outflow_Analysis(C.device, H.nx, H.ny, H.nz, H.dx, H.dy, H.dz, H.n_ghost, H.n_fields, &mass_cloud, &mass_dust, H.density_cloud_init);
 
-  // printf("cloud mass: %e\n", mass_cloud_bndry);
-  
   #ifdef MPI_CHOLLA
   MPI_Barrier(world);
-  Real arr_unreduced[6] = {mass_cloud, rate_cloud, mass_cloud_bndry, mass_dust, rate_dust, mass_dust_bndry};
-  Real arr_reduced[6];
-  MPI_Allreduce(&arr_unreduced, &arr_reduced, 6, MPI_CHREAL, MPI_SUM, world);
+  Real arr_unreduced[2] = {mass_cloud, mass_dust};
+  Real arr_reduced[2];
+  MPI_Allreduce(&arr_unreduced, &arr_reduced, 2, MPI_CHREAL, MPI_SUM, world);
   #endif  // MPI_CHOLLA
 
-  printf("mass tot %e\n", mass_dust);
-
-  chprintf("@@ Cloud mass: %e  Dust mass: %e \n", arr_reduced[0], arr_reduced[3]);
+  chprintf("@@ Cloud mass: %e  Dust mass: %e \n", arr_reduced[0], arr_reduced[1]);
   #endif  // OUTFLOW_ANALYSIS
+  #endif  // DUST
 
 #ifdef CHEMISTRY_GPU
   // Update the H and He ionization fractions and apply cooling and photoheating

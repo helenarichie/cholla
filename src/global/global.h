@@ -308,8 +308,10 @@ struct Parameters {
                                     // for cosmological simulations
 #endif                              // COSMOLOGY
 #ifdef CLOUD_TRACKING
-  Real density_cloud_init;
   Real density_wind_init;
+#endif
+#if defined(CLOUD_TRACKING) || defined(OUTFLOW_ANALYSIS)
+  Real density_cloud_init;
 #endif
 #ifdef TILED_INITIAL_CONDITIONS
   Real tile_length;
