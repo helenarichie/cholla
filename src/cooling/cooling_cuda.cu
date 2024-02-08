@@ -107,7 +107,7 @@ __global__ void cooling_kernel(Real *dev_conserved, int nx, int ny, int nz, int 
   #ifdef DE
     T_init = d * ge * (gamma - 1.0) * PRESSURE_UNIT / (n * KB);
   #endif
-
+  if (T_init < 1e6) {
     // calculate cooling rate per volume
     T = T_init;
   // call the cooling function
@@ -161,6 +161,7 @@ __global__ void cooling_kernel(Real *dev_conserved, int nx, int ny, int nz, int 
   #ifdef DE
     dev_conserved[(n_fields - 1) * n_cells + id] = d * ge;
   #endif
+  }
   }
 }
 
