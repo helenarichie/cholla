@@ -505,7 +505,8 @@ void Parse_Param(char *name, char *value, struct Parameters *parms)
 #ifdef SCALAR
   #ifdef DUST
   } else if (strcmp(name, "grain_radius") == 0) {
-    parms->grain_radius = atoi(value);
+    parms->grain_radius = atof(value);
+    chprintf("Grain radius: %e\n", parms->grain_radius);
   #endif
 #endif
   } else if (!Is_Param_Valid(name)) {
