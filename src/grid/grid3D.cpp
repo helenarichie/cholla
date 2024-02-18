@@ -555,10 +555,10 @@ Real Grid3D::Update_Hydro_Grid()
 #endif  // DUST
 
   #ifdef CLOUD_TRACKING
-  Real mass_cloud, integrand_cloud, velocity_x_cloud_avg, mass_cloud_tot;
+  Real mass_cloud_tracked, integrand_cloud, velocity_x_cloud_avg, mass_cloud_tot;
   // Do the grid-wide reduction to get the sum of rho*vx*V and the total mass for the entire cloud
   Cloud_Velocity_Reduction(C.device, H.nx, H.ny, H.nz, H.dx, H.dy, H.dz, H.n_ghost, H.n_fields, H.density_cloud_init,
-                           H.density_wind_init, &mass_cloud, &integrand_cloud);
+                           H.density_wind_init, &mass_cloud_tracked, &integrand_cloud);
 
     #ifdef MPI_CHOLLA
 
@@ -566,7 +566,7 @@ Real Grid3D::Update_Hydro_Grid()
   Real mass_reduced;
 
   MPI_Allreduce(&integrand_cloud, &integrand_reduced, 1, MPI_CHREAL, MPI_SUM, world);
-  MPI_Allreduce(&mass_cloud, &mass_reduced, 1, MPI_CHREAL, MPI_SUM, world);
+  MPI_Allreduce(&mass_cloud_tracked, &mass_reduced, 1, MPI_CHREAL, MPI_SUM, world);
 
     #endif  // MPI_CHOLLA
 
