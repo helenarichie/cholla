@@ -3287,6 +3287,9 @@ void Grid3D::Read_Grid_HDF5(hid_t file_id, struct Parameters P)
     // Free the dataset id
     status = H5Dclose(dataset_id);
 
+    #ifdef CLOUD_TRACKING
+    // H.velocity_x_cloud_avg = 1.606867e-01 / (KPC / TIME_UNIT); 
+    #endif
     mean_l = 0;
     min_l  = 1e65;
     max_l  = -1;

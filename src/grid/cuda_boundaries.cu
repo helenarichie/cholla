@@ -312,7 +312,7 @@ __global__ void Wind_Boundary_kernel(Real *c_device, int nx, int ny, int nz, int
   Real density, velocity_x, velocity_y, velocity_z, pressure, number_density;
 
   number_density   = 1e-2;  // same value as n_bg in cloud initial condition function (cm^-3)
-  Real temperature = 3e6;   // same value as T_bg in cloud initial condition function (K)
+  Real temperature = 3e7;   // same value as T_bg in cloud initial condition function (K)
 
   // same values as rho_bg and p_bg in cloud initial condition function
   density  = number_density * mu * MP / DENSITY_UNIT;
@@ -321,7 +321,7 @@ __global__ void Wind_Boundary_kernel(Real *c_device, int nx, int ny, int nz, int
   density = density_wind_init / DENSITY_UNIT;
 #endif
 
-  velocity_x = 500 * TIME_UNIT / KPC;  // km/s * (cholla unit conversion)
+  velocity_x = 1000 * TIME_UNIT / KPC;  // km/s * (cholla unit conversion)
   velocity_y = 0.0;
   velocity_z = 0.0;
 
