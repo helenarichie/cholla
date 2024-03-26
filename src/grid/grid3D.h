@@ -526,7 +526,6 @@ class Grid3D
    *  \brief Write xy, xz, and yz slices of all data to a file. */
   void Write_Slices_HDF5(hid_t file_id);
 
-
   /*! \fn void Write_Edges_HDF5(hid_t file_id)
    *  \brief Write the simulation boundaries. */
   void Write_Edges_HDF5(hid_t file_id);

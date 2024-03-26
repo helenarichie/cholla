@@ -156,7 +156,6 @@ void Write_Data(Grid3D &G, struct Parameters P, int nfile)
   }
 #endif /*OUTFLOW_ANALYSIS*/
 
-
 #ifdef PARTICLES
   if (nfile % P.n_particle == 0) {
     G.WriteData_Particles(P, nfile);
@@ -1453,12 +1452,12 @@ void Grid3D::Write_Grid_HDF5(hid_t file_id)
     #ifdef OUTPUT_METALS
   output_metals = true;
     #else   // not OUTPUT_METALS
-  output_metals = false;
+  output_metals          = false;
     #endif  // OUTPUT_METALS
     #ifdef OUTPUT_ELECTRONS
   output_electrons = true;
     #else   // not OUTPUT_ELECTRONS
-  output_electrons = false;
+  output_electrons       = false;
     #endif  // OUTPUT_ELECTRONS
     #ifdef OUTPUT_FULL_IONIZATION
   output_full_ionization = true;
@@ -1644,7 +1643,7 @@ void Grid3D::Write_Projection_HDF5(hid_t file_id)
           Real const mx = C.momentum_x[id];
           Real const my = C.momentum_y[id];
           Real const mz = C.momentum_z[id];
-          Real const E  = C.Energy[id];
+          Real const E = C.Energy[id];
 
     #ifdef MHD
           auto const [magnetic_x, magnetic_y, magnetic_z] =
@@ -1695,7 +1694,7 @@ void Grid3D::Write_Projection_HDF5(hid_t file_id)
           Real const mx = C.momentum_x[id];
           Real const my = C.momentum_y[id];
           Real const mz = C.momentum_z[id];
-          Real const E  = C.Energy[id];
+          Real const E = C.Energy[id];
 
     #ifdef MHD
           auto const [magnetic_x, magnetic_y, magnetic_z] =
@@ -1859,7 +1858,7 @@ void Grid3D::Write_Rotated_Projection_HDF5(hid_t file_id)
             Real const mx = C.momentum_x[id];
             Real const my = C.momentum_y[id];
             Real const mz = C.momentum_z[id];
-            Real const E  = C.Energy[id];
+            Real const E = C.Energy[id];
 
     #ifdef MHD
             auto const [magnetic_x, magnetic_y, magnetic_z] =
@@ -2347,16 +2346,16 @@ void Grid3D::Write_Edges_HDF5(hid_t file_id)
   minus_xslice = 0;
   minus_yslice = 0;
   minus_zslice = 0;
-  plus_xslice = H.nx;
-  plus_yslice = H.ny;
-  plus_zslice = H.nz;
+  plus_xslice  = H.nx;
+  plus_yslice  = H.ny;
+  plus_zslice  = H.nz;
   #ifdef MPI_CHOLLA
   minus_xslice = 0;
   minus_yslice = 0;
   minus_zslice = 0;
-  plus_xslice = nx_global-1;
-  plus_yslice = ny_global-1;
-  plus_zslice = nz_global-1;
+  plus_xslice  = nx_global - 1;
+  plus_yslice  = ny_global - 1;
+  plus_zslice  = nz_global - 1;
   #endif
   // 3D
   if (H.nx > 1 && H.ny > 1 && H.nz > 1) {
@@ -2364,7 +2363,7 @@ void Grid3D::Write_Edges_HDF5(hid_t file_id)
     int ny_dset = H.ny_real;
     int nz_dset = H.nz_real;
     hsize_t dims[2];
-////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////
     // Create the -xy data space for the datasets
     dims[0]      = nx_dset;
     dims[1]      = ny_dset;
@@ -2391,9 +2390,9 @@ void Grid3D::Write_Edges_HDF5(hid_t file_id)
         // When there are multiple processes, check whether this slice is in
         // your domain
         if (minus_zslice >= nz_local_start && minus_zslice < nz_local_start + nz_local) {
-          id = cuda_utilities::compute1DIndex(i + H.n_ghost, j + H.n_ghost, minus_zslice - nz_local_start + H.n_ghost, H.nx,
-                                              H.ny);
-  #endif    // MPI_CHOLLA
+          id = cuda_utilities::compute1DIndex(i + H.n_ghost, j + H.n_ghost, minus_zslice - nz_local_start + H.n_ghost,
+                                              H.nx, H.ny);
+  #endif  // MPI_CHOLLA
           dataset_buffer_d[buf_id]  = C.density[id];
           dataset_buffer_mx[buf_id] = C.momentum_x[id];
           dataset_buffer_my[buf_id] = C.momentum_y[id];
@@ -2452,8 +2451,8 @@ void Grid3D::Write_Edges_HDF5(hid_t file_id)
   #ifdef SCALAR
     free(dataset_buffer_scalar);
   #endif
-////////////////////////////////////////////////////////////
-// Create the +xy data space for the datasets
+    ////////////////////////////////////////////////////////////
+    // Create the +xy data space for the datasets
     dims[0]      = nx_dset;
     dims[1]      = ny_dset;
     dataspace_id = H5Screate_simple(2, dims, NULL);
@@ -2479,9 +2478,9 @@ void Grid3D::Write_Edges_HDF5(hid_t file_id)
         // When there are multiple processes, check whether this slice is in
         // your domain
         if (plus_zslice >= nz_local_start && plus_zslice < nz_local_start + nz_local) {
-          id = cuda_utilities::compute1DIndex(i + H.n_ghost, j + H.n_ghost, plus_zslice - nz_local_start + H.n_ghost, H.nx,
-                                              H.ny);
-  #endif    // MPI_CHOLLA
+          id = cuda_utilities::compute1DIndex(i + H.n_ghost, j + H.n_ghost, plus_zslice - nz_local_start + H.n_ghost,
+                                              H.nx, H.ny);
+  #endif  // MPI_CHOLLA
           dataset_buffer_d[buf_id]  = C.density[id];
           dataset_buffer_mx[buf_id] = C.momentum_x[id];
           dataset_buffer_my[buf_id] = C.momentum_y[id];
@@ -2540,7 +2539,7 @@ void Grid3D::Write_Edges_HDF5(hid_t file_id)
   #ifdef SCALAR
     free(dataset_buffer_scalar);
   #endif
-////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////
 
     // Create the -xz data space for the datasets
     dims[0]      = nx_dset;
@@ -2569,9 +2568,9 @@ void Grid3D::Write_Edges_HDF5(hid_t file_id)
         // When there are multiple processes, check whether this slice is in
         // your domain
         if (minus_yslice >= ny_local_start && minus_yslice < ny_local_start + ny_local) {
-          id = cuda_utilities::compute1DIndex(i + H.n_ghost, minus_yslice - ny_local_start + H.n_ghost, k + H.n_ghost, H.nx,
-                                              H.ny);
-  #endif    // MPI_CHOLLA
+          id = cuda_utilities::compute1DIndex(i + H.n_ghost, minus_yslice - ny_local_start + H.n_ghost, k + H.n_ghost,
+                                              H.nx, H.ny);
+  #endif  // MPI_CHOLLA
           dataset_buffer_d[buf_id]  = C.density[id];
           dataset_buffer_mx[buf_id] = C.momentum_x[id];
           dataset_buffer_my[buf_id] = C.momentum_y[id];
@@ -2634,8 +2633,8 @@ void Grid3D::Write_Edges_HDF5(hid_t file_id)
   #ifdef SCALAR
     free(dataset_buffer_scalar);
   #endif
-////////////////////////////////////////////////////////////
-      // Create the +xz data space for the datasets
+    ////////////////////////////////////////////////////////////
+    // Create the +xz data space for the datasets
     dims[0]      = nx_dset;
     dims[1]      = nz_dset;
     dataspace_id = H5Screate_simple(2, dims, NULL);
@@ -2662,9 +2661,9 @@ void Grid3D::Write_Edges_HDF5(hid_t file_id)
         // When there are multiple processes, check whether this slice is in
         // your domain
         if (plus_yslice >= ny_local_start && plus_yslice < ny_local_start + ny_local) {
-          id = cuda_utilities::compute1DIndex(i + H.n_ghost, plus_yslice - ny_local_start + H.n_ghost, k + H.n_ghost, H.nx,
-                                              H.ny);
-  #endif    // MPI_CHOLLA
+          id = cuda_utilities::compute1DIndex(i + H.n_ghost, plus_yslice - ny_local_start + H.n_ghost, k + H.n_ghost,
+                                              H.nx, H.ny);
+  #endif  // MPI_CHOLLA
           dataset_buffer_d[buf_id]  = C.density[id];
           dataset_buffer_mx[buf_id] = C.momentum_x[id];
           dataset_buffer_my[buf_id] = C.momentum_y[id];
@@ -2727,7 +2726,7 @@ void Grid3D::Write_Edges_HDF5(hid_t file_id)
   #ifdef SCALAR
     free(dataset_buffer_scalar);
   #endif
-////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////
     // Create the -yz data space for the datasets
     dims[0]      = ny_dset;
     dims[1]      = nz_dset;
@@ -2756,7 +2755,7 @@ void Grid3D::Write_Edges_HDF5(hid_t file_id)
         // your domain
         if (minus_xslice >= nx_local_start && minus_xslice < nx_local_start + nx_local) {
           id = cuda_utilities::compute1DIndex(minus_xslice - nx_local_start, j + H.n_ghost, k + H.n_ghost, H.nx, H.ny);
-  #endif    // MPI_CHOLLA
+  #endif  // MPI_CHOLLA
           dataset_buffer_d[buf_id]  = C.density[id];
           dataset_buffer_mx[buf_id] = C.momentum_x[id];
           dataset_buffer_my[buf_id] = C.momentum_y[id];
@@ -2797,7 +2796,7 @@ void Grid3D::Write_Edges_HDF5(hid_t file_id)
     status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_my, "/my_minus_yz");
     status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_mz, "/mz_minus_yz");
     status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_E, "/E_minus_yz");
-#ifdef DE
+  #ifdef DE
     status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_GE, "/GE_minus_yz");
   #endif
   #ifdef SCALAR
@@ -2819,7 +2818,7 @@ void Grid3D::Write_Edges_HDF5(hid_t file_id)
   #ifdef SCALAR
     free(dataset_buffer_scalar);
   #endif
-////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////
     // Create the +yz data space for the datasets
     dims[0]      = ny_dset;
     dims[1]      = nz_dset;
@@ -2848,7 +2847,7 @@ void Grid3D::Write_Edges_HDF5(hid_t file_id)
         // your domain
         if (plus_xslice >= nx_local_start && plus_xslice < nx_local_start + nx_local) {
           id = cuda_utilities::compute1DIndex(plus_xslice - nx_local_start, j + H.n_ghost, k + H.n_ghost, H.nx, H.ny);
-  #endif    // MPI_CHOLLA
+  #endif  // MPI_CHOLLA
           dataset_buffer_d[buf_id]  = C.density[id];
           dataset_buffer_mx[buf_id] = C.momentum_x[id];
           dataset_buffer_my[buf_id] = C.momentum_y[id];
@@ -2889,7 +2888,7 @@ void Grid3D::Write_Edges_HDF5(hid_t file_id)
     status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_my, "/my_plus_yz");
     status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_mz, "/mz_plus_yz");
     status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_E, "/E_plus_yz");
-#ifdef DE
+  #ifdef DE
     status = Write_HDF5_Dataset(file_id, dataspace_id, dataset_buffer_GE, "/GE_plus_yz");
   #endif
   #ifdef SCALAR
@@ -3288,7 +3287,7 @@ void Grid3D::Read_Grid_HDF5(hid_t file_id, struct Parameters P)
     status = H5Dclose(dataset_id);
 
     #ifdef CLOUD_TRACKING
-    // H.velocity_x_cloud_avg = 1.606867e-01 / (KPC / TIME_UNIT); 
+    // H.velocity_x_cloud_avg = 1.606867e-01 / (KPC / TIME_UNIT);
     #endif
     mean_l = 0;
     min_l  = 1e65;
