@@ -53,7 +53,7 @@ __global__ void Outflow_Analysis_Kernel(Real *dev_conserved, int nx, int ny, int
 
       mass_dust_stride += density_dust * dx * dy * dz;
 
-      if ((density_gas * DENSITY_UNIT) >= (density_cloud_init / 3)) {
+      if ((density_gas * DENSITY_UNIT) >= (density_cloud_init / 30)) {
         mass_cloud_stride += density_gas * dx * dy * dz;
       }
     }
