@@ -214,6 +214,14 @@ struct Header {
   Real min_dt_slow;
 #endif
 
+#ifdef CLOUD_TRACKING
+  Real density_wind_init;
+  Real velocity_x_cloud_avg = 0;
+#endif  // CLOUD_TRACKING
+
+#if defined(CLOUD_TRACKING) || defined(OUTFLOW_ANALYSIS)
+  Real density_cloud_init;
+#endif
   /*! \var t_wall
    *  \brief Wall time */
   Real t_wall;
@@ -518,6 +526,10 @@ class Grid3D
    *  \brief Write xy, xz, and yz slices of all data to a file. */
   void Write_Slices_HDF5(hid_t file_id);
 
+  /*! \fn void Write_Edges_HDF5(hid_t file_id)
+   *  \brief Write the simulation boundaries. */
+  void Write_Edges_HDF5(hid_t file_id);
+
 #endif
 
   /*! \fn void Read_Grid(struct Parameters P)
@@ -681,7 +693,7 @@ class Grid3D
    * gravitational collapse */
   void Spherical_Overdensity_3D();
 
-  void Clouds();
+  void Clouds(struct Parameters P);
 
   void Uniform_Grid();
 

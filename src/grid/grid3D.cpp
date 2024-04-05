@@ -38,8 +38,16 @@
   #include "../cooling/cooling_cuda.h"  // provides Cooling_Update
 #endif
 
+#ifdef CLOUD_TRACKING
+  #include "../cloud_tracking/cloud_tracking.h"
+#endif
+
 #ifdef DUST
   #include "../dust/dust_cuda.h"  // provides Dust_Update
+#endif
+
+#ifdef OUTFLOW_ANALYSIS
+  #include "../analysis/outflow_analysis.h"  // provides Dust_Update
 #endif
 
 /*! \fn Grid3D(void)
@@ -157,8 +165,16 @@ void Grid3D::Initialize(struct Parameters *P)
   C_cfl = 0.3;
 
 #ifdef AVERAGE_SLOW_CELLS
-  H.min_dt_slow = 1e-100;  // Initialize the minumum dt to a tiny number
-#endif                     // AVERAGE_SLOW_CELLS
+  H.min_dt_slow = 0.005;  // Initialize the minumum dt to a tiny number
+#endif                    // AVERAGE_SLOW_CELLS
+
+#ifdef CLOUD_TRACKING
+  H.density_wind_init = P->density_wind_init;
+#endif
+
+#if defined(CLOUD_TRACKING) || defined(OUTFLOW_ANALYSIS)
+  H.density_cloud_init = P->density_cloud_init;
+#endif
 
 #ifndef MPI_CHOLLA
 
@@ -523,8 +539,74 @@ Real Grid3D::Update_Hydro_Grid()
 
 #ifdef DUST
   // ==Apply dust from dust/dust_cuda.h==
-  Dust_Update(C.device, H.nx, H.ny, H.nz, H.n_ghost, H.n_fields, H.dt, gama, H.grain_radius);
-#endif  // DUST
+  Real mass_mixed, mass_hot;
+  Real mass_mixed_tot, mass_hot_tot;
+  Dust_Update(C.device, H.nx, H.ny, H.nz, H.n_ghost, H.n_fields, H.dx, H.dy, H.dz, H.dt, gama, H.grain_radius,
+              &mass_mixed, &mass_hot);
+  #ifdef MPI_CHOLLA
+  MPI_Barrier(world);
+  MPI_Allreduce(&mass_mixed, &mass_mixed_tot, 1, MPI_CHREAL, MPI_SUM, world);
+  MPI_Allreduce(&mass_hot, &mass_hot_tot, 1, MPI_CHREAL, MPI_SUM, world);
+  #endif  // MPI_CHOLLA
+  chprintf("** Mixed sputtered mass: %e  Hot sputtered mass: %e \n", mass_mixed_tot, mass_hot_tot);
+#endif    // DUST
+
+#ifdef CLOUD_TRACKING
+  Real mass_cloud_tracked, integrand_cloud, velocity_x_cloud_avg, mass_cloud_tot;
+  // Do the grid-wide reduction to get the sum of rho*vx*V and the total mass for the entire cloud
+  Cloud_Velocity_Reduction(C.device, H.nx, H.ny, H.nz, H.dx, H.dy, H.dz, H.n_ghost, H.n_fields, H.density_cloud_init,
+                           H.density_wind_init, &mass_cloud_tracked, &integrand_cloud);
+
+  #ifdef MPI_CHOLLA
+
+  Real integrand_reduced;
+  Real mass_reduced;
+
+  MPI_Allreduce(&integrand_cloud, &integrand_reduced, 1, MPI_CHREAL, MPI_SUM, world);
+  MPI_Allreduce(&mass_cloud_tracked, &mass_reduced, 1, MPI_CHREAL, MPI_SUM, world);
+
+  #endif  // MPI_CHOLLA
+
+  // Calculate the mass-averaged x-velocity (Shin et al. (2008) eq. 9)
+  if ((integrand_reduced == 0) or (mass_reduced == 0)) {
+    velocity_x_cloud_avg = 0;
+  } else {
+    velocity_x_cloud_avg = integrand_reduced / mass_reduced;
+  }
+
+  // Update the cumulative reference frame shift
+  H.velocity_x_cloud_avg += velocity_x_cloud_avg;
+
+  // printf("cumulative velocity: %e\n", H.velocity_x_cloud_avg);
+
+  chprintf("Average cloud velocity = %e km/s\n", velocity_x_cloud_avg * KPC / TIME_UNIT);
+  chprintf("Mass = %e M_sun\n", mass_reduced);
+
+  #ifdef MPI_CHOLLA
+  MPI_Barrier(world);
+  #endif
+  // Subtract this timestep's reference frame shift off from the entire grid
+  Update_Grid_Frame(C.device, H.nx, H.ny, H.nz, H.n_ghost, H.n_fields, velocity_x_cloud_avg);
+
+#endif  // CLOUD_TRACKING
+
+#ifdef DUST
+  #ifdef OUTFLOW_ANALYSIS
+  Real mass_cloud, mass_dust = 0;
+
+  Outflow_Analysis(C.device, H.nx, H.ny, H.nz, H.dx, H.dy, H.dz, H.n_ghost, H.n_fields, &mass_cloud, &mass_dust,
+                   H.density_cloud_init);
+
+    #ifdef MPI_CHOLLA
+  MPI_Barrier(world);
+  Real arr_unreduced[2] = {mass_cloud, mass_dust};
+  Real arr_reduced[2];
+  MPI_Allreduce(&arr_unreduced, &arr_reduced, 2, MPI_CHREAL, MPI_SUM, world);
+    #endif  // MPI_CHOLLA
+
+  chprintf("@@ Cloud mass: %e  Dust mass: %e \n", arr_reduced[0], arr_reduced[1]);
+  #endif  // OUTFLOW_ANALYSIS
+#endif    // DUST
 
 #ifdef CHEMISTRY_GPU
   // Update the H and He ionization fractions and apply cooling and photoheating
@@ -533,6 +615,7 @@ Real Grid3D::Update_Hydro_Grid()
   Timer.Chemistry.RecordTime(Chem.H.runtime_chemistry_step);
   non_hydro_elapsed_time += Chem.H.runtime_chemistry_step;
   #endif
+
   C.HI_density    = &C.host[H.n_cells * grid_enum::HI_density];
   C.HII_density   = &C.host[H.n_cells * grid_enum::HII_density];
   C.HeI_density   = &C.host[H.n_cells * grid_enum::HeI_density];

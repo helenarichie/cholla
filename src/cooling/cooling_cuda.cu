@@ -121,6 +121,7 @@ __global__ void cooling_kernel(Real *dev_conserved, int nx, int ny, int nz, int 
   // call the cooling function
   #ifdef CLOUDY_COOL
       cool = Cloudy_cool(n, T, coolTexObj, heatTexObj);
+<<<<<<< 
   #else
     cool = CIE_cool(n, T);
   #endif
@@ -164,7 +165,7 @@ __global__ void cooling_kernel(Real *dev_conserved, int nx, int ny, int nz, int 
   #ifdef CLOUDY_COOL
       cool = Cloudy_cool(n, T, coolTexObj, heatTexObj);
   #else
-    cool = CIE_cool(n, T);
+      cool = CIE_cool(n, T);
   // printf("%d %d %d %e %e %e\n", xid, yid, zid, n, T, cool);
   #endif
 

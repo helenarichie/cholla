@@ -68,7 +68,7 @@ void Grid3D::Set_Initial_Conditions(Parameters P)
   } else if (strcmp(P.init, "Spherical_Overdensity_3D") == 0) {
     Spherical_Overdensity_3D();
   } else if (strcmp(P.init, "Clouds") == 0) {
-    Clouds();
+    Clouds(P);
   } else if (strcmp(P.init, "Read_Grid") == 0) {
 #ifndef ONLY_PARTICLES
     Read_Grid(P);
@@ -1310,7 +1310,7 @@ void Grid3D::Spherical_Overdensity_3D()
 
 /*! \fn void Clouds()
  *  \brief Bunch of clouds. */
-void Grid3D::Clouds()
+void Grid3D::Clouds(struct Parameters P)
 {
   int i, j, k, id;
   int istart, jstart, kstart, iend, jend, kend;
@@ -1324,7 +1324,7 @@ void Grid3D::Clouds()
   Real p_bg, p_cl;       // background and cloud pressure
   Real mu   = 0.6;       // mean atomic weight
   int N_cl  = 1;         // number of clouds
-  Real R_cl = 2.5;       // cloud radius in code units (kpc)
+  Real R_cl = 0.1;       // cloud radius in code units (kpc)
   Real cl_pos[N_cl][3];  // array of cloud positions
   Real r;
 
@@ -1339,22 +1339,28 @@ void Grid3D::Clouds()
 
   // single centered cloud setup
   for (int nn = 0; nn < N_cl; nn++) {
-    cl_pos[nn][0] = 0.5 * H.xdglobal;
+    cl_pos[nn][0] = 0.0375 * H.xdglobal;
     cl_pos[nn][1] = 0.5 * H.ydglobal;
     cl_pos[nn][2] = 0.5 * H.zdglobal;
     printf("Cloud positions: %f %f %f\n", cl_pos[nn][0], cl_pos[nn][1], cl_pos[nn][2]);
   }
 
-  n_bg   = 1.68e-4;
-  n_cl   = 5.4e-2;
+  n_bg   = 1.0e-2;
+  n_cl   = 10;
   rho_bg = n_bg * mu * MP / DENSITY_UNIT;
   rho_cl = n_cl * mu * MP / DENSITY_UNIT;
-  vx_bg  = 0.0;
+#ifdef CLOUD_TRACKING
+  rho_cl = P.density_cloud_init / DENSITY_UNIT;
+  rho_bg = P.density_wind_init / DENSITY_UNIT;
+  printf("Cloud initial density: %e\n", P.density_cloud_init);
+  printf("Wind initial density: %e\n", P.density_wind_init);
+#endif
+  vx_bg = 1000 * TIME_UNIT / KPC;
   // vx_c  = -200*TIME_UNIT/KPC; // convert from km/s to kpc/kyr
-  vx_cl = 0.0;
+  vx_cl = 0 * TIME_UNIT / KPC;
   vy_bg = vy_cl = 0.0;
   vz_bg = vz_cl = 0.0;
-  T_bg          = 3e6;
+  T_bg          = 3e7;
   T_cl          = 1e4;
   p_bg          = n_bg * KB * T_bg / PRESSURE_UNIT;
   p_cl          = p_bg;
@@ -1399,7 +1405,7 @@ void Grid3D::Clouds()
   #ifdef DUST
         C.host[id + H.n_cells * grid_enum::dust_density] = 0.0;
   #endif
-#endif
+#endif  // SCALAR
         // add clouds
         for (int nn = 0; nn < N_cl; nn++) {
           r = sqrt((x_pos - cl_pos[nn][0]) * (x_pos - cl_pos[nn][0]) +
@@ -1417,6 +1423,9 @@ void Grid3D::Clouds()
 #ifdef SCALAR
   #ifdef DUST
             C.host[id + H.n_cells * grid_enum::dust_density] = rho_cl * 1e-2;
+            if (isnan(C.host[id + H.n_cells * grid_enum::dust_density])) {
+              printf("there's a nan in IC %d %d %d\n", i, j, k);
+            }
   #endif  // DUST
 #endif    // SCALAR
           }
@@ -1482,18 +1491,18 @@ void Grid3D::Zeldovich_Pancake(struct Parameters P)
   Real H0, h, Omega_M, rho_0, G, z_zeldovich, z_init, x_center, T_init, k_x;
 
   chprintf("Setting Zeldovich Pancake initial conditions...\n");
-  H0      = P.H0;
-  h       = H0 / 100;
+  H0 = P.H0;
+  h = H0 / 100;
   Omega_M = P.Omega_M;
 
   chprintf(" h = %f \n", h);
   chprintf(" Omega_M = %f \n", Omega_M);
 
   H0 /= 1000;  //[km/s / kpc]
-  G           = G_COSMO;
-  rho_0       = 3 * H0 * H0 / (8 * M_PI * G) * Omega_M / h / h;
+  G = G_COSMO;
+  rho_0 = 3 * H0 * H0 / (8 * M_PI * G) * Omega_M / h / h;
   z_zeldovich = 1;
-  z_init      = P.Init_redshift;
+  z_init = P.Init_redshift;
   chprintf(" rho_0 = %f \n", rho_0);
   chprintf(" z_init = %f \n", z_init);
   chprintf(" z_zeldovich = %f \n", z_zeldovich);
@@ -1553,17 +1562,17 @@ void Grid3D::Zeldovich_Pancake(struct Parameters P)
         index = (int(x_pos / H.dx) + 0) % 256;
         // index = ( index + 16 ) % 256;
         dens = ics_values[0 * nPoints + index];
-        vel  = ics_values[1 * nPoints + index];
-        E    = ics_values[2 * nPoints + index];
-        U    = ics_values[3 * nPoints + index];
+        vel = ics_values[1 * nPoints + index];
+        E = ics_values[2 * nPoints + index];
+        U = ics_values[3 * nPoints + index];
         // //
 
         // chprintf( "%f \n", vel );
-        C.density[id]    = dens;
+        C.density[id] = dens;
         C.momentum_x[id] = dens * vel;
         C.momentum_y[id] = 0;
         C.momentum_z[id] = 0;
-        C.Energy[id]     = E;
+        C.Energy[id] = E;
 
   #ifdef DE
         C.GasEnergy[id] = U;

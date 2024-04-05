@@ -25,6 +25,8 @@ void Output_Rotated_Projected_Data(Grid3D& G, struct Parameters P, int nfile);
 /* Output xy, xz, and yz slices of the grid data to file. */
 void Output_Slices(Grid3D& G, struct Parameters P, int nfile);
 
+void Output_Edges(Grid3D& G, struct Parameters P, int nfile);
+
 /* MPI-safe printf routine */
 int chprintf(const char* __restrict sdata, ...);
 

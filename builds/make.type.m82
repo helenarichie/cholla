@@ -2,7 +2,9 @@
 
 #-- separated output flag so that it can be overriden in target-specific 
 #   for make check
-OUTPUT    ?=  -DOUTPUT -DHDF5 -DSLICES -DPROJECTION -DROTATED_PROJECTION
+# OUTPUT    ?=  -DOUTPUT -DHDF5 -DSLICES -DPROJECTION -DROTATED_PROJECTION
+
+OUTPUT    ?=  -DOUTPUT -DHDF5 -DSLICES
 
 MPI_GPU   ?=
 
@@ -19,10 +21,14 @@ DFLAGS    += -DSTATIC_GRAV
 
 # EVOLVE SCALAR (INJECTED BY SUPERNOVA)
 DFLAGS += -DSCALAR
-DFLAGS += -DBASIC_SCALAR
+# DFLAGS += -DBASIC_SCALAR
+
+DFLAGS += -DDUST
+# DFLAGS += -DOUTFLOW_ANALYSIS
+DFLAGS += -DSCALAR_FLOOR
 
 # MW_MODEL vs m82 (default)
-DFLAGS += -DMW_MODEL
+# DFLAGS += -DMW_MODEL
 
 ifeq ($(findstring cosmology,$(TYPE)),cosmology)
 DFLAGS    += -DSIMPLE
