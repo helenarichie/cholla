@@ -549,7 +549,7 @@ Real Grid3D::Update_Hydro_Grid()
   MPI_Allreduce(&mass_hot, &mass_hot_tot, 1, MPI_CHREAL, MPI_SUM, world);
   #endif  // MPI_CHOLLA
   chprintf("** Mixed sputtered mass: %e  Hot sputtered mass: %e \n", mass_mixed_tot, mass_hot_tot);
-#endif    // DUST
+#endif  // DUST
 
 #ifdef CLOUD_TRACKING
   Real mass_cloud_tracked, integrand_cloud, velocity_x_cloud_avg, mass_cloud_tot;

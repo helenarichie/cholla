@@ -839,20 +839,20 @@ void Grid3D::Disk_3D(Parameters p)
   Real *rho_halo = (Real *)calloc(nr, sizeof(Real));
   Real *r_halo   = (Real *)calloc(nr, sizeof(Real));
 
-#ifdef SCALAR
-  #ifdef DUST
+  #ifdef SCALAR
+    #ifdef DUST
   // set entire grid to zero for dust density
   for (k = H.n_ghost; k < H.nz - H.n_ghost; k++) {
     for (j = H.n_ghost; j < H.ny - H.n_ghost; j++) {
       for (i = H.n_ghost; i < H.nx - H.n_ghost; i++) {
         // get cell index
-        id = i + j * H.nx + k * H.nx * H.ny;
-	C.dust_density[id] = 0.0;
+        id                 = i + j * H.nx + k * H.nx * H.ny;
+        C.dust_density[id] = 0.0;
       }
     }
   }
+    #endif
   #endif
-#endif
 
   //////////////////////////////////////////////
   //////////////////////////////////////////////
@@ -876,7 +876,7 @@ void Grid3D::Disk_3D(Parameters p)
       // get the centered x, y, and z positions
       k = H.n_ghost + H.ny;
       Get_Position(i, j, k, &x_pos, &y_pos, &z_pos);
-	
+
       // cylindrical radius
       r = sqrt(x_pos * x_pos + y_pos * y_pos);
 
@@ -909,12 +909,12 @@ void Grid3D::Disk_3D(Parameters p)
         // store internal energy in Energy array
         C.Energy[id] = P / (gama - 1.0);
   #ifdef SCALAR
-	#ifdef BASIC_SCALAR
+    #ifdef BASIC_SCALAR
         C.basic_scalar[id] = 1.0 * C.density[id];
-	#endif
-	#ifdef DUST
-	C.dust_density[id] = C.density[id] * 1e-2;
-	#endif
+    #endif
+    #ifdef DUST
+        C.dust_density[id] = C.density[id] * 1e-2;
+    #endif
   #endif
       }
     }
@@ -1069,12 +1069,12 @@ void Grid3D::Disk_3D(Parameters p)
         C.Energy[id] += P / (gama - 1.0);
 
         // add a passive scalar
-#ifdef SCALAR
-  #ifdef BASIC_SCALAR
-        c            = fmax(C.basic_scalar[id] / C.density[id], 0.1);
+  #ifdef SCALAR
+    #ifdef BASIC_SCALAR
+        c                  = fmax(C.basic_scalar[id] / C.density[id], 0.1);
         C.basic_scalar[id] = c * C.density[id];
+    #endif
   #endif
-#endif
       }
     }
   }

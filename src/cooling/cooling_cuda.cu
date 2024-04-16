@@ -121,10 +121,10 @@ __global__ void cooling_kernel(Real *dev_conserved, int nx, int ny, int nz, int 
   // call the cooling function
   #ifdef CLOUDY_COOL
       cool = Cloudy_cool(n, T, coolTexObj, heatTexObj);
-<<<<<<< 
-  #else
-    cool = CIE_cool(n, T);
-  #endif
+<<<<<<<
+    #else
+      cool = CIE_cool(n, T);
+    #endif
 
       // calculate change in temperature given dt
       del_T = cool * dt * TIME_UNIT * (gamma - 1.0) / (n * KB);
@@ -137,12 +137,12 @@ __global__ void cooling_kernel(Real *dev_conserved, int nx, int ny, int nz, int 
         T -= cool * dt_sub * TIME_UNIT * (gamma - 1.0) / (n * KB);
         // how much time is left from the original timestep?
         dt -= dt_sub;
-  // calculate cooling again
-  #ifdef CLOUDY_COOL
+    // calculate cooling again
+    #ifdef CLOUDY_COOL
         cool = Cloudy_cool(n, T, coolTexObj, heatTexObj);
-  #else
-      cool = CIE_cool(n, T);
-  #endif
+    #else
+        cool = CIE_cool(n, T);
+    #endif
         // calculate new change in temperature
         del_T = cool * dt * TIME_UNIT * (gamma - 1.0) / (n * KB);
       }
@@ -157,26 +157,26 @@ __global__ void cooling_kernel(Real *dev_conserved, int nx, int ny, int nz, int 
       // adjust value of energy based on total change in temperature
       del_T = T_init - T;  // total change in T
       E -= n * KB * del_T / ((gamma - 1.0) * ENERGY_UNIT);
-  #ifdef DE
+    #ifdef DE
       ge -= KB * del_T / (mu * MP * (gamma - 1.0) * SP_ENERGY_UNIT);
-  #endif
+    #endif
 
-  // calculate cooling rate for new T
-  #ifdef CLOUDY_COOL
+    // calculate cooling rate for new T
+    #ifdef CLOUDY_COOL
       cool = Cloudy_cool(n, T, coolTexObj, heatTexObj);
-  #else
+    #else
       cool = CIE_cool(n, T);
-  // printf("%d %d %d %e %e %e\n", xid, yid, zid, n, T, cool);
-  #endif
+    // printf("%d %d %d %e %e %e\n", xid, yid, zid, n, T, cool);
+    #endif
 
       // and send back from kernel
       dev_conserved[4 * n_cells + id] = E;
-  #ifdef DE
+    #ifdef DE
       dev_conserved[(n_fields - 1) * n_cells + id] = d * ge;
-  #endif
-  #ifdef BASIC_SCALAR
+    #endif
+    #ifdef BASIC_SCALAR
     }
-  #endif
+    #endif
   }
 }
 
@@ -332,7 +332,7 @@ __device__ Real CIE_cool(Real n, Real T)
   return cool;
 }
 
-  #ifdef CLOUDY_COOL
+    #ifdef CLOUDY_COOL
 /* \fn __device__ Real Cloudy_cool(Real n, Real T, cudaTextureObject_t
  coolTexObj, cudaTextureObject_t heatTexObj)
  * \brief Uses texture mapping to interpolate Cloudy cooling/heating
@@ -368,6 +368,6 @@ __device__ Real Cloudy_cool(Real n, Real T, cudaTextureObject_t coolTexObj, cuda
   // printf("DEBUG Cloudy L350: %.17e\n",cool);
   return cool;
 }
-  #endif  // CLOUDY_COOL
+    #endif  // CLOUDY_COOL
 
-#endif  // COOLING_GPU
+  #endif  // COOLING_GPU

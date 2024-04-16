@@ -23,9 +23,9 @@ void Outflow_Analysis(Real *dev_conserved, int nx, int ny, int nz, Real dx, Real
   cuda_utilities::DeviceVector<Real> dev_mass_cloud(1);
   cuda_utilities::DeviceVector<Real> dev_mass_dust(1);
 
-  hipLaunchKernelGGL(Outflow_Analysis_Kernel, launchParams.get_numBlocks(), launchParams.get_threadsPerBlock(), 0, 0, dev_conserved,
-                     nx, ny, nz, dx, dy, dz, n_ghost, n_fields, dev_mass_cloud.data(), dev_mass_dust.data(),
-                     density_cloud_init);
+  hipLaunchKernelGGL(Outflow_Analysis_Kernel, launchParams.get_numBlocks(), launchParams.get_threadsPerBlock(), 0, 0,
+                     dev_conserved, nx, ny, nz, dx, dy, dz, n_ghost, n_fields, dev_mass_cloud.data(),
+                     dev_mass_dust.data(), density_cloud_init);
   cudaDeviceSynchronize();
 
   *mass_cloud = dev_mass_cloud[0];
