@@ -165,7 +165,7 @@ void Grid3D::Initialize(struct Parameters *P)
   C_cfl = 0.3;
 
 #ifdef AVERAGE_SLOW_CELLS
-  H.min_dt_slow = 0.00025;  // Initialize the minumum dt to a tiny number
+  H.min_dt_slow = 0.005;  // Initialize the minumum dt to a tiny number
 #endif                    // AVERAGE_SLOW_CELLS
 
 #ifdef CLOUD_TRACKING
