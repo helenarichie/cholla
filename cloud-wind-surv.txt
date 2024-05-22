@@ -1,0 +1,44 @@
+################################################
+# Parameters required for all problems
+################################################
+# number of grid cells in the x dimension
+nx=1024
+# number of grid cells in the y dimension
+ny=128
+# number of grid cells in the z dimension
+nz=128
+# x direction lower domain boundary
+xmin=0.0
+# x direction domain length
+xlen=12.8
+# y direction lower domain boundary
+ymin=0.0
+# y direction domain length
+ylen=1.6
+# z direction lower domain boundary
+zmin=0
+# y direction domain length
+zlen=1.6
+# final output time
+tout=120000
+# time interval for output
+outstep=50
+n_hydro=5
+# ratio of specific heats
+gamma=1.66666667
+# name of initial conditions
+init=Clouds
+# type of boundary condition, options include 1 (periodic), 2 (reflective), 3 (transmissive), 4 (custom)
+xl_bcnd=4
+xu_bcnd=3
+yl_bcnd=3
+yu_bcnd=3
+zl_bcnd=3
+zu_bcnd=3
+# path to output directory
+outdir=./hdf5/raw/
+custom_bcnd=wind
+temperature_floor=10
+scalar_floor=1e-10
+density_cloud_init=1e-23
+grain_radius=1
