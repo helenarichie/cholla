@@ -1346,7 +1346,7 @@ void Grid3D::Clouds(struct Parameters P)
   }
 
   n_bg   = 1.0e-2;
-  n_cl   = 1;
+  n_cl   = 10;
   rho_bg = n_bg * mu * MP / DENSITY_UNIT;
   rho_cl = n_cl * mu * MP / DENSITY_UNIT;
 #ifdef CLOUD_TRACKING
