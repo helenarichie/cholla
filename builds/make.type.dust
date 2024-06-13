@@ -11,16 +11,16 @@ DFLAGS    += -DPRECISION=2
 DFLAGS    += -DPPMP
 DFLAGS    += -DHLLC
 
-DFLAGS    += -DDE
-DFLAGS    += -DAVERAGE_SLOW_CELLS
+# DFLAGS    += -DDE
+# DFLAGS    += -DAVERAGE_SLOW_CELLS
 DFLAGS    += -DTEMPERATURE_FLOOR
-DFLAGS    += -DDENSITY_FLOOR
+# DFLAGS    += -DDENSITY_FLOOR
 
 DFLAGS    += -DVL
 
 # Evolve additional scalars
-DFLAGS    += -DSCALAR
-DFLAGS    += -DSCALAR_FLOOR
+# DFLAGS    += -DSCALAR
+# DFLAGS    += -DSCALAR_FLOOR
 
 # Define dust macro
 DFLAGS    += -DDUST
@@ -35,8 +35,8 @@ DFLAGS    += -DCOOLING_GPU
 #Measure the Timing of the different stages
 #DFLAGS   += -DCPU_TIME
 
-DFLAGS    += -DSLICES
-DFLAGS    += -DPROJECTION
+# DFLAGS    += -DSLICES
+# DFLAGS    += -DPROJECTION
 
 DFLAGS    += $(OUTPUT)
 

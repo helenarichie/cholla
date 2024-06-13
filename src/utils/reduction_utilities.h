@@ -115,7 +115,7 @@ __inline__ __device__ Real Block_Reduce_Add(Real val)
   return val;
 }
 
-  #ifndef O_HIP
+#ifndef O_HIP
 // =====================================================================
 // This section handles the atomics. It is complicated because CUDA
 // doesn't currently support atomics with non-integral types.
@@ -273,22 +273,22 @@ inline __device__ double atomicMinBits(double* address, double val)
 // =====================================================================
 inline __device__ float Atomic_Add_Bits(float* address, float val)
 {
-  #ifdef O_HIP
+#ifdef O_HIP
   return atomicAdd(address, val);
-  #else  // O_HIP
+#else  // O_HIP
   return atomicAdd(address, val);
-  #endif
+#endif
 }
 // =====================================================================
 
 // =====================================================================
 inline __device__ double Atomic_Add_Bits(double* address, double val)
 {
-  #ifdef O_HIP
+#ifdef O_HIP
   return atomicAdd(address, val);
-  #else  // O_HIP
+#else  // O_HIP
   return atomicAdd(address, val);
-  #endif
+#endif
 }
 // =====================================================================
 

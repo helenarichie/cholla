@@ -35,7 +35,7 @@ TEST(tALLKernelReduceMax, CorrectInputExpectCorrectOutput)
   // ====================================
   size_t const gridSize = 64;
   size_t const size     = std::pow(gridSize, 3);
-  Real const maxValue = 4;
+  Real const maxValue   = 4;
   std::vector<Real> host_grid(size);
 
   // Fill grid with random values and assign maximum value

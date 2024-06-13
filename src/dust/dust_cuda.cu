@@ -9,8 +9,8 @@
 #ifdef DUST
 
   // STL includes
-  #include <stdio.h>
   #include <math.h>
+  #include <stdio.h>
 
   #include <cstdio>
   #include <fstream>
@@ -21,15 +21,15 @@
   #include "../global/global.h"
   #include "../global/global_cuda.h"
   #include "../grid/grid3D.h"
-  #include "../utils/DeviceVector.h"
   #include "../grid/grid_enum.h"
+  #include "../utils/DeviceVector.h"
   #include "../utils/cuda_utilities.h"
   #include "../utils/gpu.hpp"
   #include "../utils/hydro_utilities.h"
   #include "../utils/reduction_utilities.h"
 
-void Dust_Update(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields, Real dx, Real dy, Real dz, Real dt, Real gamma,
-                 Real grain_radius, Real *mass_hot, Real *mass_mixed)
+void Dust_Update(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields, Real dx, Real dy, Real dz,
+                 Real dt, Real gamma, Real grain_radius, Real *mass_hot, Real *mass_mixed)
 {
   int n_cells = nx * ny * nz;
   int ngrid   = (n_cells + TPB - 1) / TPB;
@@ -39,17 +39,17 @@ void Dust_Update(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n
   cuda_utilities::DeviceVector<Real> dev_mass_mixed(1, true);
   cuda_utilities::DeviceVector<Real> dev_mass_hot(1, true);
 
-  hipLaunchKernelGGL(Dust_Kernel, dim1dGrid, dim1dBlock, 0, 0, dev_conserved, nx, ny, nz, n_ghost, n_fields, dx, dy, dz, dt, gamma,
-                     grain_radius, dev_mass_mixed.data(), dev_mass_hot.data());
+  hipLaunchKernelGGL(Dust_Kernel, dim1dGrid, dim1dBlock, 0, 0, dev_conserved, nx, ny, nz, n_ghost, n_fields, dx, dy, dz,
+                     dt, gamma, grain_radius, dev_mass_mixed.data(), dev_mass_hot.data());
   GPU_Error_Check();
   cudaDeviceSynchronize();
 
   *mass_mixed = dev_mass_mixed[0];
-  *mass_hot = dev_mass_hot[0];
+  *mass_hot   = dev_mass_hot[0];
 }
 
-__global__ void Dust_Kernel(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields, Real dx, Real dy, Real dz, Real dt, Real gamma,
-                            Real grain_radius, Real *mass_hot, Real *mass_mixed)
+__global__ void Dust_Kernel(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields, Real dx, Real dy,
+                            Real dz, Real dt, Real gamma, Real grain_radius, Real *mass_hot, Real *mass_mixed)
 {
   // get grid indices
   int n_cells = nx * ny * nz;
@@ -65,13 +65,13 @@ __global__ void Dust_Kernel(Real *dev_conserved, int nx, int ny, int nz, int n_g
   // define physics variables
   Real density_gas, density_dust;  // fluid mass densities
   Real number_density;             // gas number density
-  Real mu = 0.6;                   // mean molecular weight
-  Real sputtered_hot = 0;
+  Real mu              = 0.6;      // mean molecular weight
+  Real sputtered_hot   = 0;
   Real sputtered_mixed = 0;  // mixed and hot-phase sputtered dust masses
 
   // define integration variables
   Real dd_dt;          // instantaneous rate of change in dust density
-  Real dd = 0;             // change in dust density at current timestep
+  Real dd     = 0;     // change in dust density at current timestep
   Real dd_max = 0.01;  // allowable percentage of dust density increase
   Real dt_sub;         // refined timestep
 
