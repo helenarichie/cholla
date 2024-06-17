@@ -80,7 +80,6 @@ __global__ void Dust_Kernel(Real *dev_conserved, int nx, int ny, int nz, int n_g
     density_gas  = dev_conserved[id + n_cells * grid_enum::density];
     density_dust = dev_conserved[id + n_cells * grid_enum::dust_density];
 
-    printf("%d %f", id, density_dust);
     // convert mass density to number density
     number_density = density_gas * DENSITY_UNIT / (mu * MP);
 
