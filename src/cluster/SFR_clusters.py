@@ -3,11 +3,23 @@ from matplotlib import pyplot as plt
 import scipy.integrate as integrate
 import scipy.interpolate as interpolate
 
+min_mass = 1e3
+max_mass = 2e4
+alpha = 1.8
+m82 = True
+if m82:
+    mw = False
+
+if m82:
+    name = "M82"
+if mw:
+    name = "MW"
+
 # a few function definitions (now just used for plotting)
 def cluster_pdf(x):
     return x ** -2
 
-integral1 = integrate.quad(cluster_pdf, 5e3, 2e5)
+integral1 = integrate.quad(cluster_pdf, min_mass, max_mass)
 A = 1 / integral1[0]
 
 def cluster_pdf_norm(x):
@@ -21,7 +33,7 @@ def cluster_cdf(x):
 #C = np.logspace(4, 6, 100000, endpoint=False)
 #C = np.logspace(3, 5.7, 100000, endpoint=False)
 #C = np.logspace(3, 4.7, 100000, endpoint=False)
-C = np.logspace(3, 5.5, 100000, endpoint=False)
+C = np.logspace(np.log10(min_mass), np.log10(max_mass), 100000, endpoint=False)
 #plt.loglog(C, cluster_pdf_norm(C))
 #plt.show()
 
@@ -55,7 +67,7 @@ while (total_SF < 1e9):
     #cl_mass = sample_from_mass_CDF(cl, 2, 1e4, 5e6)
     #cl_mass = sample_from_mass_CDF(cl, 2, 1e4, 1e6)
     #cl_mass = sample_from_mass_CDF(cl, 2, 1e3, 5e4)
-    cl_mass = sample_from_mass_CDF(cl, 2, 5e3, 2e5)
+    cl_mass = sample_from_mass_CDF(cl, alpha, min_mass, max_mass)
     clusters = np.concatenate((clusters, cl_mass))
     total_SF += cl_mass
     tot_SF = np.concatenate((tot_SF, total_SF))
@@ -70,7 +82,7 @@ print(np.size(clusters), np.size(np.where(clusters>1e4)))
 #bins = np.logspace(4,6.7,20)
 #bins = np.logspace(4,6,20)
 #bins = np.logspace(3,6,30)
-bins = np.logspace(3,5.5,20)
+bins = np.logspace(np.log10(min_mass), np.log10(max_mass), 20)
 plt.hist(clusters, bins=bins, density=True)
 #plt.hist(clusters, bins=bins, weights=clusters)
 #plt.hist(clusters, bins=bins, density=True, cumulative=-1)
@@ -82,7 +94,7 @@ plt.yscale('log')
 plt.xlabel('cluster mass [M$_\odot$]')
 #plt.ylabel('mass in bin [M$_\odot$]')
 plt.ylabel('dN / dM [M$_\odot^{-1}$]')
-plt.savefig("cluster_masses_MW_high.png", dpi=300)
+plt.savefig(f"cluster_masses_{name}.png", dpi=300)
 plt.close()
 
 # %%
@@ -97,13 +109,17 @@ N_cl = np.size(clusters)
 
 # now we'll specify the radial positions, this uses an exponential disk
 # model with a scale radius given below
-#Rd = 0.8 # M82
-Rd = 2.5 # MW
+if m82:
+    Rd = 0.8 # M82
+if mw:
+    Rd = 2.5 # MW
 def f(R):
     return R * np.exp(- R / Rd)
 
-#integral = integrate.quad(f, 0, 4.5) # M82
-integral = integrate.quad(f, 0, 9.0) # MW
+if m82:
+    integral = integrate.quad(f, 0, 4.5) # M82
+if mw:
+    integral = integrate.quad(f, 0, 9.0) # MW
 A = 1 / integral[0]
 
 # %%
@@ -112,11 +128,13 @@ def n(R):
 
 # generate radial distribution
 # this uses the inverse cdf method to sample the distribution function
-#R = np.linspace(0, 4.5, 1000, endpoint=False)+0.5*4.5/1000
-R = np.linspace(0, 9.0, 1000, endpoint=False)+0.5*9.0/1000
+if m82:
+    R = np.linspace(0, 4.5, 1000, endpoint=False)+0.5*4.5/1000
+    bin_edges = np.linspace(0,4.5,1001,endpoint=True)
+if mw:
+    R = np.linspace(0, 9.0, 1000, endpoint=False)+0.5*9.0/1000
+    bin_edges = np.linspace(0,9.0,1001,endpoint=True)
 hist = n(R)
-#bin_edges = np.linspace(0,4.5,1001,endpoint=True)
-bin_edges = np.linspace(0,9.0,1001,endpoint=True)
 cum_values = np.zeros(bin_edges.shape)
 cum_values[1:] = np.cumsum(hist*np.diff(bin_edges))
 inv_cdf = interpolate.interp1d(cum_values, bin_edges)
@@ -127,7 +145,7 @@ r_cl = inv_cdf(r)
 plt.hist(r_cl, bins=50, density=True)
 plt.plot(R, n(R), 'k')
 plt.xlabel("radius [kpc]")
-plt.savefig("cluster_distribution_r_MW_high.png", dpi=300)
+plt.savefig(f"cluster_distribution_r_{name}.png", dpi=300)
 plt.close()
 
 
@@ -140,7 +158,7 @@ plt.close()
 # %%
 plt.polar(phi_cl, r_cl, 'k,', markersize=0.2)
 plt.xticks([])
-plt.savefig("cluster_distribution_phi_MW_high.png", dpi=300)
+plt.savefig(f"cluster_distribution_phi_{name}.png", dpi=300)
 
 # %%
 x_cl = r_cl*np.cos(phi_cl)
@@ -153,4 +171,4 @@ output_arr = np.vstack((clusters, tot_SF, r_cl, phi_cl, z_cl)).T
 np.shape(output_arr)
 
 # %%
-np.savetxt('cluster_list_MW_high.txt', output_arr, fmt='%.5e', delimiter='\t', header='mass [M_sun]  total_SF [M_sun]  r [kpc]  phi [rad]  z [kpc]')
+np.savetxt(f'cluster_list_{name}.txt', output_arr, fmt='%.5e', delimiter='\t', header='mass [M_sun]  total_SF [M_sun]  r [kpc]  phi [rad]  z [kpc]')
