@@ -6,6 +6,7 @@ import scipy.interpolate as interpolate
 min_mass = 1e3
 max_mass = 2e4
 alpha = 1.8
+SF_max = 2e9
 m82 = True
 if m82:
     mw = False
@@ -61,7 +62,7 @@ tot_SF = np.empty(0)
 phi_cl = np.empty(0)
 z_cl = np.empty(0)
 total_SF = 0
-while (total_SF < 1e9):
+while (total_SF < SF_max):
     cl = np.random.rand(1)
     #cl_mass = inv_cdf(cl)
     #cl_mass = sample_from_mass_CDF(cl, 2, 1e4, 5e6)
