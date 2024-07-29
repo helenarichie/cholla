@@ -219,7 +219,7 @@ struct Header {
   Real velocity_x_cloud_avg = 0;
 #endif  // CLOUD_TRACKING
 
-#if defined(CLOUD_TRACKING) || defined(OUTFLOW_ANALYSIS)
+#if defined(CLOUD_TRACKING) || defined(OUTFLOW_ANALYSIS) || defined(GLOBAL_REDUCE_DUST)
   Real density_cloud_init;
 #endif
   /*! \var t_wall
