@@ -3,9 +3,9 @@ from matplotlib import pyplot as plt
 import scipy.integrate as integrate
 import scipy.interpolate as interpolate
 
-min_mass = 1e3
-max_mass = 2e4
-alpha = 1.8
+min_mass = 1e4
+max_mass = 1.6e6
+alpha = 1.9
 SF_max = 2e9
 m82 = True
 if m82:
@@ -111,7 +111,7 @@ N_cl = np.size(clusters)
 # now we'll specify the radial positions, this uses an exponential disk
 # model with a scale radius given below
 if m82:
-    Rd = 0.8 # M82
+    Rd = 0.3 # M82
 if mw:
     Rd = 2.5 # MW
 def f(R):
