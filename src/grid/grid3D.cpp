@@ -46,8 +46,8 @@
   #include "../dust/dust_cuda.h"  // provides Dust_Update
 #endif
 
-#ifdef OUTFLOW_ANALYSIS
-  #include "../analysis/outflow_analysis.h"  // provides Dust_Update
+#ifdef GLOBAL_REDUCE_DUST
+  #include "../analysis/global_reduce_dust.h"
 #endif
 
 /*! \fn Grid3D(void)
@@ -172,7 +172,7 @@ void Grid3D::Initialize(struct Parameters *P)
   H.density_wind_init = P->density_wind_init;
 #endif
 
-#if defined(CLOUD_TRACKING) || defined(OUTFLOW_ANALYSIS)
+#if defined(CLOUD_TRACKING) || defined(GLOBAL_REDUCE_DUST)
   H.density_cloud_init = P->density_cloud_init;
 #endif
 
@@ -591,10 +591,10 @@ Real Grid3D::Update_Hydro_Grid()
 #endif  // CLOUD_TRACKING
 
 #ifdef DUST
-  #ifdef OUTFLOW_ANALYSIS
+  #ifdef GLOBAL_REDUCE_DUST
   Real mass_cloud, mass_dust = 0;
 
-  Outflow_Analysis(C.device, H.nx, H.ny, H.nz, H.dx, H.dy, H.dz, H.n_ghost, H.n_fields, &mass_cloud, &mass_dust,
+  Global_Reduce_Dust(C.device, H.nx, H.ny, H.nz, H.dx, H.dy, H.dz, H.n_ghost, H.n_fields, &mass_cloud, &mass_dust,
                    H.density_cloud_init);
 
     #ifdef MPI_CHOLLA
@@ -605,7 +605,7 @@ Real Grid3D::Update_Hydro_Grid()
     #endif  // MPI_CHOLLA
 
   chprintf("@@ Cloud mass: %e  Dust mass: %e \n", arr_reduced[0], arr_reduced[1]);
-  #endif  // OUTFLOW_ANALYSIS
+  #endif  // GLOBAL_REDUCE_DUST
 #endif    // DUST
 
 #ifdef CHEMISTRY_GPU
