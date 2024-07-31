@@ -523,9 +523,15 @@ void Parse_Param(char *name, char *value, struct Parameters *parms)
 #endif
 #ifdef SCALAR
   #ifdef DUST
-  } else if (strcmp(name, "grain_radius") == 0) {
-    parms->grain_radius = atof(value);
-    chprintf("Grain radius: %e\n", parms->grain_radius);
+  } else if (strcmp(name, "grain_radius_1") == 0) {
+    parms->grain_radius_1 = atof(value);
+    chprintf("Grain radius: %e\n", parms->grain_radius_1);
+  } else if (strcmp(name, "grain_radius_2") == 0) {
+    parms->grain_radius_2 = atof(value);
+    chprintf("Grain radius: %e\n", parms->grain_radius_2);
+  } else if (strcmp(name, "grain_radius_3") == 0) {
+    parms->grain_radius_3 = atof(value);
+    chprintf("Grain radius: %e\n", parms->grain_radius_3);
   #endif
 #endif
   } else if (!Is_Param_Valid(name)) {
