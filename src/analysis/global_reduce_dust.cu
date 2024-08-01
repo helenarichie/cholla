@@ -15,16 +15,16 @@
     #include "../utils/hydro_utilities.h"
     #include "../utils/reduction_utilities.h"
 
-void Global_Reduce_Dust(Real *dev_conserved, int nx, int ny, int nz, Real dx, Real dy, Real dz, int n_ghost, int n_fields,
-                        Real *mass_cloud, Real *mass_dust, Real density_cloud_init)
+void Global_Reduce_Dust(Real *dev_conserved, int nx, int ny, int nz, Real dx, Real dy, Real dz, int n_ghost,
+                        int n_fields, int dust_enum, Real *mass_cloud, Real *mass_dust, Real density_cloud_init)
 {
   cuda_utilities::AutomaticLaunchParams static const launchParams(Global_Reduce_Dust_Kernel);
 
-  cuda_utilities::DeviceVector<Real> dev_mass_cloud(1);
-  cuda_utilities::DeviceVector<Real> dev_mass_dust(1);
+  cuda_utilities::DeviceVector<Real> dev_mass_cloud(1, true);
+  cuda_utilities::DeviceVector<Real> dev_mass_dust(1, true);
 
   hipLaunchKernelGGL(Global_Reduce_Dust_Kernel, launchParams.get_numBlocks(), launchParams.get_threadsPerBlock(), 0, 0,
-                     dev_conserved, nx, ny, nz, dx, dy, dz, n_ghost, n_fields, dev_mass_cloud.data(),
+                     dev_conserved, nx, ny, nz, dx, dy, dz, n_ghost, n_fields, dust_enum, dev_mass_cloud.data(),
                      dev_mass_dust.data(), density_cloud_init);
   cudaDeviceSynchronize();
 
@@ -33,7 +33,7 @@ void Global_Reduce_Dust(Real *dev_conserved, int nx, int ny, int nz, Real dx, Re
 }
 
 __global__ void Global_Reduce_Dust_Kernel(Real *dev_conserved, int nx, int ny, int nz, Real dx, Real dy, Real dz,
-                                          int n_ghost, int n_fields, Real *mass_cloud, Real *mass_dust,
+                                          int n_ghost, int n_fields, int dust_enum, Real *mass_cloud, Real *mass_dust,
                                           Real density_cloud_init)
 {
   int xid, yid, zid, n_cells;
@@ -50,7 +50,7 @@ __global__ void Global_Reduce_Dust_Kernel(Real *dev_conserved, int nx, int ny, i
     if (xid > n_ghost - 1 && xid < nx - n_ghost && yid > n_ghost - 1 && yid < ny - n_ghost && zid > n_ghost - 1 &&
         zid < nz - n_ghost) {
       density_gas  = dev_conserved[id + n_cells * grid_enum::density];
-      density_dust = dev_conserved[id + n_cells * grid_enum::dust_density];
+      density_dust = dev_conserved[id + n_cells * dust_enum];
 
       mass_dust_stride += density_dust * dx * dy * dz;
 

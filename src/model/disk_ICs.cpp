@@ -846,8 +846,10 @@ void Grid3D::Disk_3D(Parameters p)
     for (j = H.n_ghost; j < H.ny - H.n_ghost; j++) {
       for (i = H.n_ghost; i < H.nx - H.n_ghost; i++) {
         // get cell index
-        id                 = i + j * H.nx + k * H.nx * H.ny;
-        C.dust_density[id] = 0.0;
+        id = i + j * H.nx + k * H.nx * H.ny;
+        for (int i = 0; i < N_GRAIN_SIZES; ++i) {
+          C.host[id + H.n_cells * (grid_enum::dust_density + i)] = 0.0;
+        }
       }
     }
   }
@@ -913,7 +915,9 @@ void Grid3D::Disk_3D(Parameters p)
         C.basic_scalar[id] = 1.0 * C.density[id];
     #endif
     #ifdef DUST
-        C.dust_density[id] = C.density[id] * 1e-2;
+        for (int i = 0; i < N_GRAIN_SIZES; ++i) {
+          C.host[id + H.n_cells * (grid_enum::dust_density + i)] = C.density[id] * 1e-2;
+        }
     #endif
   #endif
       }

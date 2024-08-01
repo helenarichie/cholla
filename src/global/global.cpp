@@ -11,6 +11,7 @@
 #include <sys/time.h>
 
 #include <set>
+#include <sstream>
 
 #include "../io/io.h"                 //defines chprintf
 #include "../utils/error_handling.h"  // defines ASSERT
@@ -523,15 +524,22 @@ void Parse_Param(char *name, char *value, struct Parameters *parms)
 #endif
 #ifdef SCALAR
   #ifdef DUST
-  } else if (strcmp(name, "grain_radius_1") == 0) {
-    parms->grain_radius_1 = atof(value);
-    chprintf("Grain radius: %e\n", parms->grain_radius_1);
-  } else if (strcmp(name, "grain_radius_2") == 0) {
-    parms->grain_radius_2 = atof(value);
-    chprintf("Grain radius: %e\n", parms->grain_radius_2);
-  } else if (strcmp(name, "grain_radius_3") == 0) {
-    parms->grain_radius_3 = atof(value);
-    chprintf("Grain radius: %e\n", parms->grain_radius_3);
+  } else if (strcmp(name, "grain_radius") == 0) {
+    std::vector<Real> tmp_vec;
+    std::stringstream ss(value);
+    float i;
+    while (ss >> i) {
+      tmp_vec.push_back(i);
+      if (ss.peek() == ',') {
+        ss.ignore();
+      }
+    }
+    chprintf("Grain radii: ");
+    for (int i = 0; i < N_GRAIN_SIZES; ++i) {
+      parms->grain_radius[i] = tmp_vec[i];
+      chprintf("%f, ", parms->grain_radius[i] * 0.1);
+    }
+    chprintf("micron \n");
   #endif
 #endif
   } else if (!Is_Param_Valid(name)) {

@@ -29,7 +29,7 @@
   #include "../utils/reduction_utilities.h"
 
 void Dust_Update(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields, Real dx, Real dy, Real dz,
-                 Real dt, Real gamma, Real dust_enum, Real grain_radius, Real *mass_hot, Real *mass_mixed)
+                 Real dt, Real gamma, int dust_enum, Real grain_radius, Real *mass_hot, Real *mass_mixed)
 {
   int n_cells = nx * ny * nz;
   int ngrid   = (n_cells + TPB - 1) / TPB;
@@ -49,7 +49,8 @@ void Dust_Update(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n
 }
 
 __global__ void Dust_Kernel(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields, Real dx, Real dy,
-                            Real dz, Real dt, Real gamma, Real dust_enum, Real grain_radius, Real *mass_hot, Real *mass_mixed)
+                            Real dz, Real dt, Real gamma, int dust_enum, Real grain_radius, Real *mass_hot,
+                            Real *mass_mixed)
 {
   // get grid indices
   int n_cells = nx * ny * nz;

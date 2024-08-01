@@ -292,7 +292,9 @@ void Grid3D::Initialize(struct Parameters *P)
 
 #ifdef SCALAR
   #ifdef DUST
-  H.grain_radius = P->grain_radius;
+  for (int i = 0; i < N_GRAIN_SIZES; ++i) {
+    H.grain_radius[i] = P->grain_radius[i];
+  }
   #endif
 #endif
 
@@ -318,9 +320,6 @@ void Grid3D::AllocateMemory(void)
   #ifdef BASIC_SCALAR
   C.basic_scalar = &(C.host[H.n_cells * grid_enum::basic_scalar]);
   #endif
-  #ifdef DUST
-  C.dust_density = &(C.host[H.n_cells * grid_enum::dust_density]);
-  #endif
 #endif  // SCALAR
 #ifdef MHD
   C.magnetic_x = &(C.host[grid_enum::magnetic_x * H.n_cells]);
@@ -343,9 +342,6 @@ void Grid3D::AllocateMemory(void)
   C.d_scalar = &(C.device[H.n_cells * grid_enum::scalar]);
   #ifdef BASIC_SCALAR
   C.d_basic_scalar = &(C.device[H.n_cells * grid_enum::basic_scalar]);
-  #endif
-  #ifdef DUST
-  C.d_dust_density = &(C.device[H.n_cells * grid_enum::dust_density]);
   #endif
 #endif  // SCALAR
 #ifdef MHD
@@ -520,7 +516,9 @@ Real Grid3D::Update_Hydro_Grid()
 
 #ifdef SCALAR_FLOOR
   #ifdef DUST
-  Apply_Scalar_Floor(C.device, H.nx, H.ny, H.nz, H.n_ghost, grid_enum::dust_density, H.scalar_floor);
+  for (int i = 0; i < N_GRAIN_SIZES; i++) {
+    Apply_Scalar_Floor(C.device, H.nx, H.ny, H.nz, H.n_ghost, grid_enum::dust_density + i, H.scalar_floor);
+  }
   #endif
 #endif  // SCALAR_FLOOR
 
@@ -538,17 +536,33 @@ Real Grid3D::Update_Hydro_Grid()
 #endif  // COOLING_GPU
 
 #ifdef DUST
+  Real masses_mixed_tot[N_GRAIN_SIZES] = {0};
+  Real masses_hot_tot[N_GRAIN_SIZES]   = {0};
   // ==Apply dust from dust/dust_cuda.h==
-  Real mass_mixed, mass_hot;
-  Real mass_mixed_tot, mass_hot_tot;
-  Dust_Update(C.device, H.nx, H.ny, H.nz, H.n_ghost, H.n_fields, H.dx, H.dy, H.dz, H.dt, gama, H.grain_radius,
-              &mass_mixed, &mass_hot);
+  for (int i = 0; i < N_GRAIN_SIZES; i++) {
+    Real mass_mixed, mass_hot;
+    Real mass_mixed_tot, mass_hot_tot;
+
+    Dust_Update(C.device, H.nx, H.ny, H.nz, H.n_ghost, H.n_fields, H.dx, H.dy, H.dz, H.dt, gama,
+                grid_enum::dust_density + i, H.grain_radius[i], &mass_mixed, &mass_hot);
+
   #ifdef MPI_CHOLLA
-  MPI_Barrier(world);
-  MPI_Allreduce(&mass_mixed, &mass_mixed_tot, 1, MPI_CHREAL, MPI_SUM, world);
-  MPI_Allreduce(&mass_hot, &mass_hot_tot, 1, MPI_CHREAL, MPI_SUM, world);
+    MPI_Barrier(world);
+    MPI_Allreduce(&mass_mixed, &mass_mixed_tot, 1, MPI_CHREAL, MPI_SUM, world);
+    MPI_Allreduce(&mass_hot, &mass_hot_tot, 1, MPI_CHREAL, MPI_SUM, world);
   #endif  // MPI_CHOLLA
-  chprintf("** Mixed sputtered mass: %e  Hot sputtered mass: %e \n", mass_mixed_tot, mass_hot_tot);
+    masses_mixed_tot[i] = mass_mixed_tot;
+    masses_hot_tot[i]   = mass_hot_tot;
+  }
+  chprintf("\nMixed sputtered mass: ");
+  for (int i = 0; i < N_GRAIN_SIZES; i++) {
+    chprintf("%e  ", masses_mixed_tot[i]);
+  }
+  chprintf("  Hot sputtered mass: ");
+  for (int i = 0; i < N_GRAIN_SIZES; i++) {
+    chprintf("%e  ", masses_hot_tot[i]);
+  }
+  chprintf("\n");
 #endif  // DUST
 
 #ifdef CLOUD_TRACKING
@@ -592,19 +606,29 @@ Real Grid3D::Update_Hydro_Grid()
 
 #ifdef DUST
   #ifdef GLOBAL_REDUCE_DUST
-  Real mass_cloud, mass_dust = 0;
+  Real masses_dust[N_GRAIN_SIZES] = {0};
+  Real mass_cloud_return          = 0;
 
-  Global_Reduce_Dust(C.device, H.nx, H.ny, H.nz, H.dx, H.dy, H.dz, H.n_ghost, H.n_fields, &mass_cloud, &mass_dust,
-                   H.density_cloud_init);
+  for (int i = 0; i < N_GRAIN_SIZES; i++) {
+    Real mass_cloud, mass_dust = 0;
+
+    Global_Reduce_Dust(C.device, H.nx, H.ny, H.nz, H.dx, H.dy, H.dz, H.n_ghost, H.n_fields, grid_enum::dust_density + i,
+                       &mass_cloud, &mass_dust, H.density_cloud_init);
 
     #ifdef MPI_CHOLLA
-  MPI_Barrier(world);
-  Real arr_unreduced[2] = {mass_cloud, mass_dust};
-  Real arr_reduced[2];
-  MPI_Allreduce(&arr_unreduced, &arr_reduced, 2, MPI_CHREAL, MPI_SUM, world);
+    MPI_Barrier(world);
+    Real arr_unreduced[2] = {mass_cloud, mass_dust};
+    Real arr_reduced[2]   = {0};
+    MPI_Allreduce(&arr_unreduced, &arr_reduced, 2, MPI_CHREAL, MPI_SUM, world);
     #endif  // MPI_CHOLLA
-
-  chprintf("@@ Cloud mass: %e  Dust mass: %e \n", arr_reduced[0], arr_reduced[1]);
+    masses_dust[i]    = arr_reduced[1];
+    mass_cloud_return = arr_reduced[0];
+  }
+  chprintf("Cloud mass: %e   Dust mass: ", mass_cloud_return);
+  for (int i = 0; i < N_GRAIN_SIZES; i++) {
+    chprintf("%e  ", masses_dust[i]);
+  }
+  chprintf("\n\n");
   #endif  // GLOBAL_REDUCE_DUST
 #endif    // DUST
 

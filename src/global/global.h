@@ -82,6 +82,10 @@ typedef double Real;
   #define N_MHD_FIELDS 0
 #endif  // MHD
 
+#ifdef DUST
+  #define N_GRAIN_SIZES 4
+#endif  // DUST
+
 // Inital Chemistry fractions
 #define INITIAL_FRACTION_HI       0.75984603480
 #define INITIAL_FRACTION_HII      1.53965115054e-4
@@ -350,9 +354,7 @@ struct Parameters {
 #endif
 #ifdef SCALAR
   #ifdef DUST
-  Real grain_radius_1;
-  Real grain_radius_2;
-  Real grain_radius_3;
+  Real grain_radius[N_GRAIN_SIZES];
   #endif
 #endif
 };
