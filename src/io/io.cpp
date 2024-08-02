@@ -1476,7 +1476,7 @@ void Grid3D::Write_Grid_HDF5(hid_t file_id)
 
     #ifdef DUST
     for (int a_i = 0; a_i < N_GRAIN_SIZES; a_i++) {
-      std::string field_name = "/d_dust_" + std::to_string(a_i);
+      std::string field_name = "/dust_density_" + std::to_string(a_i);
       char const *field_name_char = field_name.c_str();
     
       Write_Grid_HDF5_Field_GPU(H, file_id, dataset_buffer, device_dataset_vector.data(),
@@ -3303,7 +3303,11 @@ void Grid3D::Read_Grid_HDF5(hid_t file_id, struct Parameters P)
     #endif  // BASIC_SCALAR
 
     #ifdef DUST
-  Read_Grid_HDF5_Field(file_id, dataset_buffer, H, &(C.host[H.n_cells * grid_enum::dust_density]), "/dust_density");
+  for (int a_i = 0; a_i < N_GRAIN_SIZES; a_i++) {
+    std::string field_name = "/dust_density_" + std::to_string(a_i);
+    char const *field_name_char = field_name.c_str();
+    Read_Grid_HDF5_Field(file_id, dataset_buffer, H, &(C.host[H.n_cells * (grid_enum::dust_density+a_i)]), field_name_char);
+  }
     #endif  // DUST
 
     #if defined(COOLING_GRACKLE) || defined(CHEMISTRY_GPU)
