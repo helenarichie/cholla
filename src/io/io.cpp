@@ -1475,8 +1475,13 @@ void Grid3D::Write_Grid_HDF5(hid_t file_id)
     #endif  // BASIC_SCALAR
 
     #ifdef DUST
-  Write_Grid_HDF5_Field_GPU(H, file_id, dataset_buffer, device_dataset_vector.data(),
-                            &(C.device[H.n_cells * grid_enum::dust_density]), "/dust_density");
+    for (int a_i = 0; a_i < N_GRAIN_SIZES; a_i++) {
+      std::string field_name = "/d_dust_" + std::to_string(a_i);
+      char const *field_name_char = field_name.c_str();
+    
+      Write_Grid_HDF5_Field_GPU(H, file_id, dataset_buffer, device_dataset_vector.data(),
+                                &(C.device[H.n_cells * (grid_enum::dust_density+a_i)]), field_name_char);
+    }
     #endif  // DUST
 
     #ifdef OUTPUT_CHEMISTRY
@@ -1731,13 +1736,13 @@ void Grid3D::Write_Projection_HDF5(hid_t file_id)
       for (int i = 0; i < H.nx_real * H.nz_real; i++) {
         temp_buffer_xz[i] = dataset_buffer_dust_xz[i+a_i];
       }
-      std::string t_xy = "/d_dust_xy_" + std::to_string(a_i);
-      char const *n_char_xy = t_xy.c_str();
-      std::string t_xz = "/d_dust_xz_" + std::to_string(a_i);
-      char const *n_char_xz = t_xz.c_str();
+      std::string field_name_xy = "/d_dust_xy_" + std::to_string(a_i);
+      char const *field_name_char_xy = field_name_xy.c_str();
+      std::string field_name_xz = "/d_dust_xz_" + std::to_string(a_i);
+      char const *field_name_char_xz = field_name_xz.c_str();
 
-      status = Write_HDF5_Dataset(file_id, dataspace_xy_id, dataset_buffer_dust_xy, n_char_xy);
-      status = Write_HDF5_Dataset(file_id, dataspace_xz_id, dataset_buffer_dust_xz, n_char_xz);
+      status = Write_HDF5_Dataset(file_id, dataspace_xy_id, dataset_buffer_dust_xy, field_name_char_xy);
+      status = Write_HDF5_Dataset(file_id, dataspace_xz_id, dataset_buffer_dust_xz, field_name_char_xz);
     }
     free(temp_buffer_xy);
     free(temp_buffer_xz);
