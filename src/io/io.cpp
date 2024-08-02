@@ -10,6 +10,7 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+
 #ifdef HDF5
   #include <hdf5.h>
 #endif  // HDF5
@@ -1557,7 +1558,7 @@ void Grid3D::Write_Projection_HDF5(hid_t file_id)
   herr_t status;
   Real dxy, dxz, Txy, Txz;
   #ifdef DUST
-  Real dust_xy, dust_xz;
+  Real dust_xy[N_GRAIN_SIZES], dust_xz[N_GRAIN_SIZES];
   Real *dataset_buffer_dust_xy, *dataset_buffer_dust_xz;
   #endif
 
@@ -1578,8 +1579,8 @@ void Grid3D::Write_Projection_HDF5(hid_t file_id)
     dataset_buffer_Txy = (Real *)malloc(H.nx_real * H.ny_real * sizeof(Real));
     dataset_buffer_Txz = (Real *)malloc(H.nx_real * H.nz_real * sizeof(Real));
   #ifdef DUST
-    dataset_buffer_dust_xy = (Real *)malloc(H.nx_real * H.ny_real * sizeof(Real));
-    dataset_buffer_dust_xz = (Real *)malloc(H.nx_real * H.nz_real * sizeof(Real));
+    dataset_buffer_dust_xy = (Real *)malloc(N_GRAIN_SIZES * H.nx_real * H.ny_real * sizeof(Real));
+    dataset_buffer_dust_xz = (Real *)malloc(N_GRAIN_SIZES * H.nx_real * H.nz_real * sizeof(Real));
   #endif
 
     // Create the data space for the datasets
@@ -1595,7 +1596,9 @@ void Grid3D::Write_Projection_HDF5(hid_t file_id)
         dxy = 0;
         Txy = 0;
   #ifdef DUST
-        dust_xy = 0;
+        for (int a_i = 0; a_i < N_GRAIN_SIZES; a_i++) {
+          dust_xy[a_i] = 0;
+        }
   #endif
         // for each xy element, sum over the z column
         for (int k = 0; k < H.nz_real; k++) {
@@ -1608,7 +1611,9 @@ void Grid3D::Write_Projection_HDF5(hid_t file_id)
           Real const d = C.density[id];
           dxy += d * H.dz;
   #ifdef DUST
-          dust_xy += C.host[H.n_cells * grid_enum::dust_density + id] * H.dz;
+          for (int a_i = 0; a_i < N_GRAIN_SIZES; a_i++) {
+            dust_xy[a_i] += C.host[H.n_cells * (grid_enum::dust_density + a_i) + id] * H.dz;
+          }
   #endif
           // calculate number density
           Real const n = d * DENSITY_UNIT / (mu * MP);
@@ -1638,7 +1643,9 @@ void Grid3D::Write_Projection_HDF5(hid_t file_id)
         dataset_buffer_dxy[buf_id] = dxy;
         dataset_buffer_Txy[buf_id] = Txy;
   #ifdef DUST
-        dataset_buffer_dust_xy[buf_id] = dust_xy;
+        for (int a_i = 0; a_i < N_GRAIN_SIZES; a_i++) {
+          dataset_buffer_dust_xy[j + i * H.nz_real * a_i] = dust_xy[a_i];
+        }
   #endif
       }
     }
@@ -1649,7 +1656,9 @@ void Grid3D::Write_Projection_HDF5(hid_t file_id)
         dxz = 0;
         Txz = 0;
   #ifdef DUST
-        dust_xz = 0;
+        for (int a_i = 0; a_i < N_GRAIN_SIZES; a_i++) {
+          dust_xz[a_i] = 0;
+        }
   #endif
         // only contribute to the projection if your domain is in the slice
         if (ny_local_start < pend && ny_local_start + ny_local > pstart) {
@@ -1669,7 +1678,9 @@ void Grid3D::Write_Projection_HDF5(hid_t file_id)
             Real const d = C.density[id];
             dxz += d * H.dy;
   #ifdef DUST
-            dust_xz += C.host[H.n_cells * grid_enum::dust_density + id] * H.dy;
+            for (int a_i = 0; a_i < N_GRAIN_SIZES; a_i++) {
+              dust_xz[a_i] += C.host[H.n_cells * (grid_enum::dust_density + a_i) + id] * H.dy;
+            }
   #endif
             // calculate number density
             Real const n = d * DENSITY_UNIT / (mu * MP);
@@ -1697,7 +1708,9 @@ void Grid3D::Write_Projection_HDF5(hid_t file_id)
         dataset_buffer_dxz[buf_id] = dxz;
         dataset_buffer_Txz[buf_id] = Txz;
   #ifdef DUST
-        dataset_buffer_dust_xz[buf_id] = dust_xz;
+        for (int a_i = 0; a_i < N_GRAIN_SIZES; a_i++) {
+          dataset_buffer_dust_xz[k + i * H.nz_real * a_i] = dust_xz[a_i];
+        }
   #endif
       }
     }
@@ -1708,8 +1721,26 @@ void Grid3D::Write_Projection_HDF5(hid_t file_id)
     status = Write_HDF5_Dataset(file_id, dataspace_xy_id, dataset_buffer_Txy, "/T_xy");
     status = Write_HDF5_Dataset(file_id, dataspace_xz_id, dataset_buffer_Txz, "/T_xz");
   #ifdef DUST
-    status = Write_HDF5_Dataset(file_id, dataspace_xy_id, dataset_buffer_dust_xy, "/d_dust_xy");
-    status = Write_HDF5_Dataset(file_id, dataspace_xz_id, dataset_buffer_dust_xz, "/d_dust_xz");
+    Real *temp_buffer_xy, *temp_buffer_xz;
+    temp_buffer_xy = (Real *)malloc(H.nx_real * H.ny_real * sizeof(Real));
+    temp_buffer_xz = (Real *)malloc(H.nx_real * H.nz_real * sizeof(Real));
+    for (int a_i = 0; a_i < N_GRAIN_SIZES; a_i++) {
+      for (int i = 0; i < H.nx_real * H.ny_real; i++) {
+        temp_buffer_xy[i] = dataset_buffer_dust_xy[i+a_i];
+      }
+      for (int i = 0; i < H.nx_real * H.nz_real; i++) {
+        temp_buffer_xz[i] = dataset_buffer_dust_xz[i+a_i];
+      }
+      std::string t_xy = "/d_dust_xy_" + std::to_string(a_i);
+      char const *n_char_xy = t_xy.c_str();
+      std::string t_xz = "/d_dust_xz_" + std::to_string(a_i);
+      char const *n_char_xz = t_xz.c_str();
+
+      status = Write_HDF5_Dataset(file_id, dataspace_xy_id, dataset_buffer_dust_xy, n_char_xy);
+      status = Write_HDF5_Dataset(file_id, dataspace_xz_id, dataset_buffer_dust_xz, n_char_xz);
+    }
+    free(temp_buffer_xy);
+    free(temp_buffer_xz);
   #endif
 
     // Free the dataspace ids
