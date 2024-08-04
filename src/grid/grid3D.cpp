@@ -539,16 +539,18 @@ Real Grid3D::Update_Hydro_Grid()
 
 #ifdef DUST
   // ==Apply dust from dust/dust_cuda.h==
-  Real mass_mixed, mass_hot;
-  Real mass_mixed_tot, mass_hot_tot;
+  Real mass_hot, mass_mixed, mass_cool;
+  Real mass_hot_tot, mass_mixed_tot, mass_cool_tot;
   Dust_Update(C.device, H.nx, H.ny, H.nz, H.n_ghost, H.n_fields, H.dx, H.dy, H.dz, H.dt, gama, H.grain_radius,
-              &mass_mixed, &mass_hot);
+              &mass_hot, &mass_mixed, &mass_cool);
   #ifdef MPI_CHOLLA
   MPI_Barrier(world);
-  MPI_Allreduce(&mass_mixed, &mass_mixed_tot, 1, MPI_CHREAL, MPI_SUM, world);
   MPI_Allreduce(&mass_hot, &mass_hot_tot, 1, MPI_CHREAL, MPI_SUM, world);
+  MPI_Allreduce(&mass_mixed, &mass_mixed_tot, 1, MPI_CHREAL, MPI_SUM, world);
+  MPI_Allreduce(&mass_cool, &mass_cool_tot, 1, MPI_CHREAL, MPI_SUM, world);
   #endif  // MPI_CHOLLA
-  chprintf("** Mixed sputtered mass: %e  Hot sputtered mass: %e \n", mass_mixed_tot, mass_hot_tot);
+  chprintf("Cool sputtered mass: %e  Mixed sputtered mass: %e  Hot sputtered mass: %e \n", mass_cool_tot,
+           mass_mixed_tot, mass_hot_tot);
 #endif  // DUST
 
 #ifdef CLOUD_TRACKING
