@@ -155,11 +155,11 @@ void Write_Data(Grid3D &G, struct Parameters P, int nfile)
   }
 #endif /*SLICES*/
 
-#ifdef OUTFLOW_ANALYSIS
+#ifdef OUTPUT_EDGES
   if (nfile % P.n_slice == 0) {
     Output_Edges(G, P, nfile);
   }
-#endif /*OUTFLOW_ANALYSIS*/
+#endif /*OUTPUT_EDGES*/
 
 #ifdef PARTICLES
   if (nfile % P.n_particle == 0) {
