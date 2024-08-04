@@ -595,7 +595,7 @@ Real Grid3D::Update_Hydro_Grid()
   Real mass_cloud, mass_dust = 0;
 
   Global_Reduce_Dust(C.device, H.nx, H.ny, H.nz, H.dx, H.dy, H.dz, H.n_ghost, H.n_fields, &mass_cloud, &mass_dust,
-                   H.density_cloud_init);
+                     H.density_cloud_init);
 
     #ifdef MPI_CHOLLA
   MPI_Barrier(world);

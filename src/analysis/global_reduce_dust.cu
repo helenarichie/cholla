@@ -15,8 +15,8 @@
     #include "../utils/hydro_utilities.h"
     #include "../utils/reduction_utilities.h"
 
-void Global_Reduce_Dust(Real *dev_conserved, int nx, int ny, int nz, Real dx, Real dy, Real dz, int n_ghost, int n_fields,
-                        Real *mass_cloud, Real *mass_dust, Real density_cloud_init)
+void Global_Reduce_Dust(Real *dev_conserved, int nx, int ny, int nz, Real dx, Real dy, Real dz, int n_ghost,
+                        int n_fields, Real *mass_cloud, Real *mass_dust, Real density_cloud_init)
 {
   cuda_utilities::AutomaticLaunchParams static const launchParams(Global_Reduce_Dust_Kernel);
 
