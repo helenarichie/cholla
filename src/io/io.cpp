@@ -1468,13 +1468,13 @@ void Grid3D::Write_Grid_HDF5(hid_t file_id)
     #endif  // BASIC_SCALAR
 
     #ifdef DUST
-    for (int a_i = 0; a_i < N_GRAIN_SIZES; a_i++) {
-      std::string field_name = "/dust_density_" + std::to_string(a_i);
-      char const *field_name_char = field_name.c_str();
-    
-      Write_Grid_HDF5_Field_GPU(H, file_id, dataset_buffer, device_dataset_vector.data(),
-                                &(C.device[H.n_cells * (grid_enum::dust_density+a_i)]), field_name_char);
-    }
+  for (int a_i = 0; a_i < N_GRAIN_SIZES; a_i++) {
+    std::string field_name      = "/dust_density_" + std::to_string(a_i);
+    char const *field_name_char = field_name.c_str();
+
+    Write_Grid_HDF5_Field_GPU(H, file_id, dataset_buffer, device_dataset_vector.data(),
+                              &(C.device[H.n_cells * (grid_enum::dust_density + a_i)]), field_name_char);
+  }
     #endif  // DUST
 
     #ifdef OUTPUT_CHEMISTRY
@@ -1724,14 +1724,14 @@ void Grid3D::Write_Projection_HDF5(hid_t file_id)
     temp_buffer_xz = (Real *)malloc(H.nx_real * H.nz_real * sizeof(Real));
     for (int a_i = 0; a_i < N_GRAIN_SIZES; a_i++) {
       for (int i = 0; i < H.nx_real * H.ny_real; i++) {
-        temp_buffer_xy[i] = dataset_buffer_dust_xy[i+a_i*H.nx_real*H.ny_real];
+        temp_buffer_xy[i] = dataset_buffer_dust_xy[i + a_i * H.nx_real * H.ny_real];
       }
       for (int i = 0; i < H.nx_real * H.nz_real; i++) {
-        temp_buffer_xz[i] = dataset_buffer_dust_xz[i+a_i*H.nx_real*H.nz_real];
+        temp_buffer_xz[i] = dataset_buffer_dust_xz[i + a_i * H.nx_real * H.nz_real];
       }
-      std::string field_name_xy = "/d_dust_" + std::to_string(a_i) + "_xy";
+      std::string field_name_xy      = "/d_dust_" + std::to_string(a_i) + "_xy";
       char const *field_name_char_xy = field_name_xy.c_str();
-      std::string field_name_xz = "/d_dust_" + std::to_string(a_i) + "_xz";
+      std::string field_name_xz      = "/d_dust_" + std::to_string(a_i) + "_xz";
       char const *field_name_char_xz = field_name_xz.c_str();
 
       status = Write_HDF5_Dataset(file_id, dataspace_xy_id, dataset_buffer_dust_xy, field_name_char_xy);
@@ -3429,9 +3429,10 @@ void Grid3D::Read_Grid_HDF5(hid_t file_id, struct Parameters P)
 
     #ifdef DUST
   for (int a_i = 0; a_i < N_GRAIN_SIZES; a_i++) {
-    std::string field_name = "/dust_density_" + std::to_string(a_i);
+    std::string field_name      = "/dust_density_" + std::to_string(a_i);
     char const *field_name_char = field_name.c_str();
-    Read_Grid_HDF5_Field(file_id, dataset_buffer, H, &(C.host[H.n_cells * (grid_enum::dust_density+a_i)]), field_name_char);
+    Read_Grid_HDF5_Field(file_id, dataset_buffer, H, &(C.host[H.n_cells * (grid_enum::dust_density + a_i)]),
+                         field_name_char);
   }
     #endif  // DUST
 
