@@ -6,7 +6,6 @@
     #include "../utils/gpu.hpp"
 
 void Global_Reduce_Dust(Real *dev_conserved, int nx, int ny, int nz, Real dx, Real dy, Real dz, int n_ghost,
-<<<<<<< Updated upstream
                         int n_fields, int dust_enum, Real gamma, Real *mass_cloud, Real *mass_dust_hot, Real *mass_dust_mixed, Real *mass_dust_cool,
                         Real density_cloud_init);
 
