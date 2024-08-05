@@ -316,7 +316,7 @@ struct Parameters {
 #ifdef CLOUD_TRACKING
   Real density_wind_init;
 #endif
-#if defined(CLOUD_TRACKING) || defined(OUTFLOW_ANALYSIS) || defined(GLOBAL_REDUCE_DUST)
+#if defined(CLOUD_TRACKING) || defined(GLOBAL_REDUCE_DUST)
   Real density_cloud_init;
 #endif
 #ifdef TILED_INITIAL_CONDITIONS

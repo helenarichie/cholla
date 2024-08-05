@@ -517,7 +517,7 @@ void Parse_Param(char *name, char *value, struct Parameters *parms)
   } else if (strcmp(name, "density_wind_init") == 0) {
     parms->density_wind_init = atof(value);
 #endif
-#if defined(OUTFLOW_ANALYSIS) || defined(GLOBAL_REDUCE_DUST) || defined(CLOUD_TRACKING)
+#if defined(GLOBAL_REDUCE_DUST) || defined(CLOUD_TRACKING)
   } else if (strcmp(name, "density_cloud_init") == 0) {
     parms->density_cloud_init = atof(value);
     chprintf("Initial cloud density: %e (g/cm^3)\n", parms->density_cloud_init);

@@ -536,31 +536,38 @@ Real Grid3D::Update_Hydro_Grid()
 #endif  // COOLING_GPU
 
 #ifdef DUST
-  Real masses_mixed_tot[N_GRAIN_SIZES] = {0};
   Real masses_hot_tot[N_GRAIN_SIZES]   = {0};
+  Real masses_mixed_tot[N_GRAIN_SIZES] = {0};
+  Real masses_cool_tot[N_GRAIN_SIZES] = {0};
   // ==Apply dust from dust/dust_cuda.h==
   for (int i = 0; i < N_GRAIN_SIZES; i++) {
-    Real mass_mixed, mass_hot;
-    Real mass_mixed_tot, mass_hot_tot;
+    Real mass_hot, mass_mixed, mass_cool = 0;
+    Real mass_hot_tot, mass_mixed_tot, mass_cool_tot = 0;
 
-    Dust_Update(C.device, H.nx, H.ny, H.nz, H.n_ghost, H.n_fields, H.dx, H.dy, H.dz, H.dt, gama,
-                grid_enum::dust_density + i, H.grain_radius[i], &mass_mixed, &mass_hot);
+    Dust_Update(C.device, H.nx, H.ny, H.nz, H.n_ghost, H.n_fields, H.dx, H.dy, H.dz, H.dt, gama, grid_enum::dust_density + i, H.grain_radius[i],
+                &mass_hot, &mass_mixed, &mass_cool);
 
-  #ifdef MPI_CHOLLA
+    #ifdef MPI_CHOLLA
     MPI_Barrier(world);
-    MPI_Allreduce(&mass_mixed, &mass_mixed_tot, 1, MPI_CHREAL, MPI_SUM, world);
     MPI_Allreduce(&mass_hot, &mass_hot_tot, 1, MPI_CHREAL, MPI_SUM, world);
-  #endif  // MPI_CHOLLA
-    masses_mixed_tot[i] = mass_mixed_tot;
+    MPI_Allreduce(&mass_mixed, &mass_mixed_tot, 1, MPI_CHREAL, MPI_SUM, world);
+    MPI_Allreduce(&mass_cool, &mass_cool_tot, 1, MPI_CHREAL, MPI_SUM, world);
+    #endif  // MPI_CHOLLA
     masses_hot_tot[i]   = mass_hot_tot;
+    masses_mixed_tot[i] = mass_mixed_tot;
+    masses_cool_tot[i] = mass_cool_tot;
+  }
+  chprintf("  Hot sputtered mass: ");
+  for (int i = 0; i < N_GRAIN_SIZES; i++) {
+    chprintf("%e  ", masses_hot_tot[i]);
   }
   chprintf("\nMixed sputtered mass: ");
   for (int i = 0; i < N_GRAIN_SIZES; i++) {
     chprintf("%e  ", masses_mixed_tot[i]);
   }
-  chprintf("  Hot sputtered mass: ");
+  chprintf("\nCool sputtered mass: ");
   for (int i = 0; i < N_GRAIN_SIZES; i++) {
-    chprintf("%e  ", masses_hot_tot[i]);
+    chprintf("%e  ", masses_cool_tot[i]);
   }
   chprintf("\n");
 #endif  // DUST
@@ -609,8 +616,8 @@ Real Grid3D::Update_Hydro_Grid()
   for (int i = 0; i < N_GRAIN_SIZES; i++) {
     Real mass_cloud, mass_dust_hot, mass_dust_mixed, mass_dust_cool = 0;
 
-    Global_Reduce_Dust(C.device, H.nx, H.ny, H.nz, H.dx, H.dy, H.dz, H.n_ghost, H.n_fields, grid_enum::dust_density + i, gama,
-                       &mass_cloud, &mass_dust_hot, &mass_dust_mixed, &mass_dust_cool, H.density_cloud_init);
+  Global_Reduce_Dust(C.device, H.nx, H.ny, H.nz, H.dx, H.dy, H.dz, H.n_ghost, H.n_fields, grid_enum::dust_density + i, gama, &mass_cloud, &mass_dust_hot, &mass_dust_mixed, &mass_dust_cool,
+                     H.density_cloud_init);
 
     #ifdef MPI_CHOLLA
     MPI_Barrier(world);
