@@ -1403,9 +1403,11 @@ void Grid3D::Clouds(struct Parameters P)
 #endif
 #ifdef SCALAR
   #ifdef DUST
-        C.host[id + H.n_cells * grid_enum::dust_density] = 0.0;
-  #endif
-#endif  // SCALAR
+        for (int i = 0; i < N_GRAIN_SIZES; i++) {
+          C.host[id + H.n_cells * (grid_enum::dust_density + i)] = 0.0;
+        }
+  #endif  // DUST
+#endif    // SCALAR
         // add clouds
         for (int nn = 0; nn < N_cl; nn++) {
           r = sqrt((x_pos - cl_pos[nn][0]) * (x_pos - cl_pos[nn][0]) +
@@ -1422,9 +1424,11 @@ void Grid3D::Clouds(struct Parameters P)
 #endif  // DE
 #ifdef SCALAR
   #ifdef DUST
-            C.host[id + H.n_cells * grid_enum::dust_density] = rho_cl * 1e-2;
-            if (isnan(C.host[id + H.n_cells * grid_enum::dust_density])) {
-              printf("there's a nan in IC %d %d %d\n", i, j, k);
+            for (int i = 0; i < N_GRAIN_SIZES; i++) {
+              C.host[id + H.n_cells * (grid_enum::dust_density + i)] = rho_cl * 1e-2;
+              if (isnan(C.host[id + H.n_cells * (grid_enum::dust_density + i)])) {
+                printf("there's a nan in IC %d %d %d\n", i, j, k);
+              }
             }
   #endif  // DUST
 #endif    // SCALAR
