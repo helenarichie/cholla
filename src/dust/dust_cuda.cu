@@ -29,7 +29,8 @@
   #include "../utils/reduction_utilities.h"
 
 void Dust_Update(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields, Real dx, Real dy, Real dz,
-                 Real dt, Real gamma, Real grain_radius, Real *mass_hot, Real *mass_mixed, Real *mass_cool)
+                 Real dt, Real gamma, int dust_enum, Real grain_radius, Real *mass_hot, Real *mass_mixed,
+                 Real *mass_cool)
 {
   int n_cells = nx * ny * nz;
   int ngrid   = (n_cells + TPB - 1) / TPB;
@@ -41,7 +42,8 @@ void Dust_Update(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n
   cuda_utilities::DeviceVector<Real> dev_mass_cool(1, true);
 
   hipLaunchKernelGGL(Dust_Kernel, dim1dGrid, dim1dBlock, 0, 0, dev_conserved, nx, ny, nz, n_ghost, n_fields, dx, dy, dz,
-                     dt, gamma, grain_radius, dev_mass_hot.data(), dev_mass_mixed.data(), dev_mass_cool.data());
+                     dt, gamma, dust_enum, grain_radius, dev_mass_hot.data(), dev_mass_mixed.data(),
+                     dev_mass_cool.data());
   GPU_Error_Check();
   cudaDeviceSynchronize();
 
@@ -51,8 +53,8 @@ void Dust_Update(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n
 }
 
 __global__ void Dust_Kernel(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields, Real dx, Real dy,
-                            Real dz, Real dt, Real gamma, Real grain_radius, Real *mass_hot, Real *mass_mixed,
-                            Real *mass_cool)
+                            Real dz, Real dt, Real gamma, int dust_enum, Real grain_radius, Real *mass_hot,
+                            Real *mass_mixed, Real *mass_cool)
 {
   // get grid indices
   int n_cells = nx * ny * nz;
@@ -82,7 +84,7 @@ __global__ void Dust_Kernel(Real *dev_conserved, int nx, int ny, int nz, int n_g
   if (id_x >= is && id_x < ie && id_y >= js && id_y < je && id_z >= ks && id_z < ke) {
     // get conserved quanitites
     density_gas  = dev_conserved[id + n_cells * grid_enum::density];
-    density_dust = dev_conserved[id + n_cells * grid_enum::dust_density];
+    density_dust = dev_conserved[id + n_cells * dust_enum];
 
     // convert mass density to number density
     number_density = density_gas * DENSITY_UNIT / (mu * MP);
@@ -135,7 +137,7 @@ __global__ void Dust_Kernel(Real *dev_conserved, int nx, int ny, int nz, int n_g
       sputtered_cool += abs(dd * dx * dy * dz);
     }
 
-    dev_conserved[id + n_cells * grid_enum::dust_density] = density_dust;
+    dev_conserved[id + n_cells * dust_enum] = density_dust;
   }
   __syncthreads();
 

@@ -60,6 +60,11 @@ enum : int {
 
   #ifdef DUST
   dust_density,
+    #ifdef GRAIN_SIZE_DIST
+  dust_density_a2,
+  dust_density_a3,
+  dust_density_a4,
+    #endif
   #endif  // DUST
 
 #endif  // SCALAR
