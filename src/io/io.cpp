@@ -2032,7 +2032,8 @@ void Grid3D::Write_Slices_HDF5(hid_t file_id)
     #endif
     #ifdef DUST
           for (int a_i = 0; a_i < N_GRAIN_SIZES; a_i++) {
-            dataset_buffer_dust[buf_id + a_i * H.nx_real * H.ny_real] = C.host[H.n_cells * (grid_enum::dust_density + a_i) + id];
+            dataset_buffer_dust[buf_id + a_i * H.nx_real * H.ny_real] =
+                C.host[H.n_cells * (grid_enum::dust_density + a_i) + id];
           }
     #endif
   #endif
@@ -2058,9 +2059,9 @@ void Grid3D::Write_Slices_HDF5(hid_t file_id)
           dataset_buffer_basic_scalar[buf_id] = 0;
       #endif
       #ifdef DUST
-        for (int a_i = 0; a_i < N_GRAIN_SIZES; a_i++) {
-          dataset_buffer_dust[buf_id + a_i * H.nx_real * H.ny_real] = 0;
-        }
+          for (int a_i = 0; a_i < N_GRAIN_SIZES; a_i++) {
+            dataset_buffer_dust[buf_id + a_i * H.nx_real * H.ny_real] = 0;
+          }
       #endif
     #endif
         }
@@ -2194,7 +2195,8 @@ void Grid3D::Write_Slices_HDF5(hid_t file_id)
     #endif
     #ifdef DUST
           for (int a_i = 0; a_i < N_GRAIN_SIZES; a_i++) {
-            dataset_buffer_dust[buf_id + a_i * H.nx_real * H.nz_real] = C.host[H.n_cells * (grid_enum::dust_density + a_i) + id];
+            dataset_buffer_dust[buf_id + a_i * H.nx_real * H.nz_real] =
+                C.host[H.n_cells * (grid_enum::dust_density + a_i) + id];
           }
     #endif
   #endif
@@ -2353,7 +2355,8 @@ void Grid3D::Write_Slices_HDF5(hid_t file_id)
   #ifdef SCALAR
     #ifdef DUST
           for (int a_i = 0; a_i < N_GRAIN_SIZES; a_i++) {
-            dataset_buffer_dust[buf_id + a_i * H.ny_real * H.nz_real] = C.host[H.n_cells * (grid_enum::dust_density + a_i) + id];
+            dataset_buffer_dust[buf_id + a_i * H.ny_real * H.nz_real] =
+                C.host[H.n_cells * (grid_enum::dust_density + a_i) + id];
           }
     #endif
     #ifdef BASIC_SCALAR
