@@ -1467,7 +1467,7 @@ void Grid3D::Write_Grid_HDF5(hid_t file_id)
     #endif  // BASIC_SCALAR
 
     #ifdef DUST
-  Write_Grid_HDF5_Field_GPU(H, file_id, dataset_buffer, device_dataset_vector.data(), C.d_dust_density,
+  Write_Grid_HDF5_Field_GPU(H, file_id, dataset_buffer, device_dataset_vector.data(), &C.device[H.n_cells * grid_enum::dust_density],
                             "/dust_density");
     #endif  // DUST
 
@@ -1601,7 +1601,7 @@ void Grid3D::Write_Projection_HDF5(hid_t file_id)
           Real const d = C.density[id];
           dxy += d * H.dz;
   #ifdef DUST
-          dust_xy += C.dust_density[id] * H.dz;
+          dust_xy += C.host[id + H.n_cells * grid_enum::dust_density] * H.dz;
   #endif
           // calculate number density
           Real const n = d * DENSITY_UNIT / (mu * MP);
@@ -1662,7 +1662,7 @@ void Grid3D::Write_Projection_HDF5(hid_t file_id)
             Real const d = C.density[id];
             dxz += d * H.dy;
   #ifdef DUST
-            dust_xz += C.dust_density[id] * H.dy;
+            dust_xz += C.host[id + H.n_cells * grid_enum::dust_density] * H.dy;
   #endif
             // calculate number density
             Real const n = d * DENSITY_UNIT / (mu * MP);
@@ -1997,7 +1997,7 @@ void Grid3D::Write_Slices_HDF5(hid_t file_id)
           dataset_buffer_basic_scalar[buf_id] = C.basic_scalar[id];
     #endif
     #ifdef DUST
-          dataset_buffer_dust[buf_id] = C.dust_density[id];
+          dataset_buffer_dust[buf_id] = C.host[id + H.n_cells * grid_enum::dust_density];
     #endif
   #endif
   #ifdef MPI_CHOLLA
@@ -2144,7 +2144,7 @@ void Grid3D::Write_Slices_HDF5(hid_t file_id)
           dataset_buffer_basic_scalar[buf_id] = C.basic_scalar[id];
     #endif
     #ifdef DUST
-          dataset_buffer_dust[buf_id] = C.dust_density[id];
+          dataset_buffer_dust[buf_id] = C.host[id + H.n_cells * grid_enum::dust_density];
     #endif
   #endif
   #ifdef MPI_CHOLLA
@@ -2288,7 +2288,7 @@ void Grid3D::Write_Slices_HDF5(hid_t file_id)
   #endif
   #ifdef SCALAR
     #ifdef DUST
-          dataset_buffer_dust[buf_id] = C.dust_density[id];
+          dataset_buffer_dust[buf_id] = C.host[id + H.n_cells * grid_enum::dust_density];
     #endif
     #ifdef BASIC_SCALAR
           dataset_buffer_basic_scalar[buf_id] = C.basic_scalar[id];
@@ -2460,7 +2460,7 @@ void Grid3D::Write_Edges_HDF5(hid_t file_id)
           dataset_buffer_basic_scalar[buf_id] = C.basic_scalar[id];
     #endif
     #ifdef DUST
-          dataset_buffer_dust[buf_id] = C.dust_density[id];
+          dataset_buffer_dust[buf_id] = C.host[id + H.n_cells * grid_enum::dust_density];
     #endif
   #endif
   #ifdef MPI_CHOLLA
@@ -2570,7 +2570,7 @@ void Grid3D::Write_Edges_HDF5(hid_t file_id)
           dataset_buffer_basic_scalar[buf_id] = C.basic_scalar[id];
     #endif
     #ifdef DUST
-          dataset_buffer_dust[buf_id] = C.dust_density[id];
+          dataset_buffer_dust[buf_id] = C.host[id + H.n_cells * grid_enum::dust_density];
     #endif
   #endif
   #ifdef MPI_CHOLLA
@@ -2684,7 +2684,7 @@ void Grid3D::Write_Edges_HDF5(hid_t file_id)
           dataset_buffer_basic_scalar[buf_id] = C.basic_scalar[id];
     #endif
     #ifdef DUST
-          dataset_buffer_dust[buf_id] = C.dust_density[id];
+          dataset_buffer_dust[buf_id] = C.host[id + H.n_cells * grid_enum::dust_density];
     #endif
   #endif
   #ifdef MPI_CHOLLA
@@ -2798,7 +2798,7 @@ void Grid3D::Write_Edges_HDF5(hid_t file_id)
           dataset_buffer_basic_scalar[buf_id] = C.basic_scalar[id];
     #endif
     #ifdef DUST
-          dataset_buffer_dust[buf_id] = C.dust_density[id];
+          dataset_buffer_dust[buf_id] = C.host[id + H.n_cells * grid_enum::dust_density];
     #endif
   #endif
   #ifdef MPI_CHOLLA
@@ -2911,7 +2911,7 @@ void Grid3D::Write_Edges_HDF5(hid_t file_id)
     #endif
           dataset_buffer_basic_scalar[buf_id] = C.basic_scalar[id];
     #ifdef DUST
-          dataset_buffer_dust[buf_id] = C.dust_density[id];
+          dataset_buffer_dust[buf_id] = C.host[id + H.n_cells * grid_enum::dust_density];
     #endif
   #endif
   #ifdef MPI_CHOLLA
@@ -3024,7 +3024,7 @@ void Grid3D::Write_Edges_HDF5(hid_t file_id)
     #endif
           dataset_buffer_basic_scalar[buf_id] = C.basic_scalar[id];
     #ifdef DUST
-          dataset_buffer_dust[buf_id] = C.dust_density[id];
+          dataset_buffer_dust[buf_id] = C.host[id + H.n_cells * grid_enum::dust_density];
     #endif
   #endif
   #ifdef MPI_CHOLLA
