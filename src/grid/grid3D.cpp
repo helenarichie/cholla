@@ -628,7 +628,7 @@ Real Grid3D::Update_Hydro_Grid()
     mass_cloud_tot = arr_reduced[0];
     #endif  // MPI_CHOLLA
     chprintf("Dust mass: (hot) %e  (mixed) %e  (cool) %e  (%f micron)\n", arr_reduced[1], arr_reduced[2],
-             arr_reduced[3], H.grain_radius[i]*0.1);
+             arr_reduced[3], H.grain_radius[i] * 0.1);
   }
   chprintf("Cloud mass: %e\n\n", mass_cloud_tot);
 

@@ -1734,7 +1734,7 @@ void Grid3D::Write_Projection_HDF5(hid_t file_id)
 
       status = Write_HDF5_Dataset(file_id, dataspace_xy_id, temp_buffer_xy, field_name_char_xy);
       status = Write_HDF5_Dataset(file_id, dataspace_xz_id, temp_buffer_xz, field_name_char_xz);
-    }  
+    }
     free(temp_buffer_xy);
     free(temp_buffer_xz);
   #endif
