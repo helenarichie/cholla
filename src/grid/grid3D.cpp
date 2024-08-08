@@ -557,7 +557,7 @@ Real Grid3D::Update_Hydro_Grid()
     masses_mixed_tot[i] = mass_mixed_tot;
     masses_cool_tot[i]  = mass_cool_tot;
   }
-  chprintf("  Hot sputtered mass: ");
+  chprintf("Hot sputtered mass:  ");
   for (int i = 0; i < N_GRAIN_SIZES; i++) {
     chprintf("%e  ", masses_hot_tot[i]);
   }
@@ -565,7 +565,7 @@ Real Grid3D::Update_Hydro_Grid()
   for (int i = 0; i < N_GRAIN_SIZES; i++) {
     chprintf("%e  ", masses_mixed_tot[i]);
   }
-  chprintf("\nCool sputtered mass: ");
+  chprintf("\nCool sputtered mass:  ");
   for (int i = 0; i < N_GRAIN_SIZES; i++) {
     chprintf("%e  ", masses_cool_tot[i]);
   }
@@ -613,6 +613,7 @@ Real Grid3D::Update_Hydro_Grid()
 
 #ifdef DUST
   #ifdef GLOBAL_REDUCE_DUST
+  Real mass_cloud_tot = 0;
   for (int i = 0; i < N_GRAIN_SIZES; i++) {
     Real mass_cloud, mass_dust_hot, mass_dust_mixed, mass_dust_cool = 0;
 
@@ -624,11 +625,13 @@ Real Grid3D::Update_Hydro_Grid()
     Real arr_unreduced[4] = {mass_cloud, mass_dust_hot, mass_dust_mixed, mass_dust_cool};
     Real arr_reduced[4]   = {0};
     MPI_Allreduce(&arr_unreduced, &arr_reduced, 4, MPI_CHREAL, MPI_SUM, world);
+    mass_cloud_tot = arr_reduced[0];
     #endif  // MPI_CHOLLA
-    chprintf("Cloud mass: %e  Dust mass: hot: %e  mixed: %e  cool: %e  (%f micron)\n", arr_reduced[0], arr_reduced[1],
-             arr_reduced[2], arr_reduced[3], H.grain_radius[i]);
+    chprintf("Dust mass: (hot) %e  (mixed) %e  (cool) %e  (%f micron)\n", arr_reduced[1], arr_reduced[2],
+             arr_reduced[3], H.grain_radius[i]*0.1);
   }
-  chprintf("\n");
+  chprintf("Cloud mass: %e\n\n", mass_cloud_tot);
+
   #endif  // GLOBAL_REDUCE_DUST
 #endif    // DUST
 

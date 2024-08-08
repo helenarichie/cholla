@@ -1720,9 +1720,9 @@ void Grid3D::Write_Projection_HDF5(hid_t file_id)
     status = Write_HDF5_Dataset(file_id, dataspace_xz_id, dataset_buffer_Txz, "/T_xz");
   #ifdef DUST
     Real *temp_buffer_xy, *temp_buffer_xz;
-    temp_buffer_xy = (Real *)malloc(H.nx_real * H.ny_real * sizeof(Real));
-    temp_buffer_xz = (Real *)malloc(H.nx_real * H.nz_real * sizeof(Real));
     for (int a_i = 0; a_i < N_GRAIN_SIZES; a_i++) {
+      temp_buffer_xy = (Real *)malloc(H.nx_real * H.ny_real * sizeof(Real));
+      temp_buffer_xz = (Real *)malloc(H.nx_real * H.nz_real * sizeof(Real));
       for (int i = 0; i < H.nx_real * H.ny_real; i++) {
         temp_buffer_xy[i] = dataset_buffer_dust_xy[i + a_i * H.nx_real * H.ny_real];
       }
@@ -1736,9 +1736,10 @@ void Grid3D::Write_Projection_HDF5(hid_t file_id)
 
       status = Write_HDF5_Dataset(file_id, dataspace_xy_id, dataset_buffer_dust_xy, field_name_char_xy);
       status = Write_HDF5_Dataset(file_id, dataspace_xz_id, dataset_buffer_dust_xz, field_name_char_xz);
+      
+      free(temp_buffer_xy);
+      free(temp_buffer_xz);
     }
-    free(temp_buffer_xy);
-    free(temp_buffer_xz);
   #endif
 
     // Free the dataspace ids
