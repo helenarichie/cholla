@@ -536,40 +536,59 @@ Real Grid3D::Update_Hydro_Grid()
 #endif  // COOLING_GPU
 
 #ifdef DUST
-  Real masses_hot_tot[N_GRAIN_SIZES]   = {0};
-  Real masses_mixed_tot[N_GRAIN_SIZES] = {0};
-  Real masses_cool_tot[N_GRAIN_SIZES]  = {0};
+  // set z offsets of local CPU volume to pass to GPU
+  // so global position on the grid is known
+  int z_off = 0;
+  #ifdef MPI_CHOLLA
+  z_off = nz_local_start;
+  #endif
+
+  std::vector<Real> masses_hot_tot(N_GRAIN_SIZES * N_BINS, 0.0);
+  std::vector<Real> masses_mixed_tot(N_GRAIN_SIZES * N_BINS, 0.0);
+  std::vector<Real> masses_cool_tot(N_GRAIN_SIZES * N_BINS, 0.0);
+
   // ==Apply dust from dust/dust_cuda.h==
   for (int i = 0; i < N_GRAIN_SIZES; i++) {
-    Real mass_hot, mass_mixed, mass_cool             = 0;
-    Real mass_hot_tot, mass_mixed_tot, mass_cool_tot = 0;
+    std::vector<Real> mass_hot(N_BINS, 0.0);
+    std::vector<Real> mass_mixed(N_BINS, 0.0);
+    std::vector<Real> mass_cool(N_BINS, 0.0);
+    std::vector<Real> mass_hot_tot(N_BINS, 0.0);
+    std::vector<Real> mass_mixed_tot(N_BINS, 0.0);
+    std::vector<Real> mass_cool_tot(N_BINS, 0.0);
 
-    Dust_Update(C.device, H.nx, H.ny, H.nz, H.n_ghost, H.n_fields, H.dx, H.dy, H.dz, H.dt, gama,
-                grid_enum::dust_density + i, H.grain_radius[i], &mass_hot, &mass_mixed, &mass_cool);
+    Dust_Update(C.device, H.nx, H.ny, H.nz, H.n_ghost, H.n_fields, H.dx, H.dy, H.dz, H.zbound, z_off, H.dt, gama,
+                grid_enum::dust_density + i, H.grain_radius[i], mass_hot, mass_mixed, mass_cool);
 
   #ifdef MPI_CHOLLA
     MPI_Barrier(world);
-    MPI_Allreduce(&mass_hot, &mass_hot_tot, 1, MPI_CHREAL, MPI_SUM, world);
-    MPI_Allreduce(&mass_mixed, &mass_mixed_tot, 1, MPI_CHREAL, MPI_SUM, world);
-    MPI_Allreduce(&mass_cool, &mass_cool_tot, 1, MPI_CHREAL, MPI_SUM, world);
+    MPI_Allreduce(mass_hot.data(), mass_hot_tot.data(), N_BINS, MPI_CHREAL, MPI_SUM, world);
+    MPI_Allreduce(mass_mixed.data(), mass_mixed_tot.data(), N_BINS, MPI_CHREAL, MPI_SUM, world);
+    MPI_Allreduce(mass_cool.data(), mass_cool_tot.data(), N_BINS, MPI_CHREAL, MPI_SUM, world);
   #endif  // MPI_CHOLLA
-    masses_hot_tot[i]   = mass_hot_tot;
-    masses_mixed_tot[i] = mass_mixed_tot;
-    masses_cool_tot[i]  = mass_cool_tot;
+
+    for (int j = 0; j < N_BINS; j++) {
+      masses_hot_tot.at(j + i * N_BINS)   = mass_hot_tot.at(j);
+      masses_mixed_tot.at(j + i * N_BINS) = mass_mixed_tot.at(j);
+      masses_cool_tot.at(j + i * N_BINS)  = mass_cool_tot.at(j);
+    }
   }
-  chprintf("Hot sputtered mass:  ");
-  for (int i = 0; i < N_GRAIN_SIZES; i++) {
-    chprintf("%e  ", masses_hot_tot[i]);
+
+  for (int j = 0; j < N_BINS; j++) {
+    chprintf("%d  Hot sputtered mass:  ", j);
+    for (int i = 0; i < N_GRAIN_SIZES; i++) {
+      chprintf("%e  ", masses_hot_tot.at(j + i * N_BINS));
+    }
+    chprintf("  Mixed sputtered mass: ");
+    for (int i = 0; i < N_GRAIN_SIZES; i++) {
+      chprintf("%e  ", masses_mixed_tot.at(j + i * N_BINS));
+    }
+    chprintf("  Cool sputtered mass:  ");
+    for (int i = 0; i < N_GRAIN_SIZES; i++) {
+      chprintf("%e  ", masses_cool_tot.at(j + i * N_BINS));
+    }
+    chprintf("\n");
   }
-  chprintf("\nMixed sputtered mass: ");
-  for (int i = 0; i < N_GRAIN_SIZES; i++) {
-    chprintf("%e  ", masses_mixed_tot[i]);
-  }
-  chprintf("\nCool sputtered mass:  ");
-  for (int i = 0; i < N_GRAIN_SIZES; i++) {
-    chprintf("%e  ", masses_cool_tot[i]);
-  }
-  chprintf("\n");
+
 #endif  // DUST
 
 #ifdef CLOUD_TRACKING
@@ -622,13 +641,13 @@ Real Grid3D::Update_Hydro_Grid()
 
     #ifdef MPI_CHOLLA
     MPI_Barrier(world);
-    Real arr_unreduced[4] = {mass_cloud, mass_dust_hot, mass_dust_mixed, mass_dust_cool};
-    Real arr_reduced[4]   = {0};
-    MPI_Allreduce(&arr_unreduced, &arr_reduced, 4, MPI_CHREAL, MPI_SUM, world);
-    mass_cloud_tot = arr_reduced[0];
+    std::vector<Real> arr_unreduced = {mass_cloud, mass_dust_hot, mass_dust_mixed, mass_dust_cool};
+    std::vector<Real> arr_reduced(4, 0);
+    MPI_Allreduce(arr_unreduced.data(), arr_reduced.data(), 4, MPI_CHREAL, MPI_SUM, world);
+    mass_cloud_tot = arr_reduced.at(0);
     #endif  // MPI_CHOLLA
-    chprintf("Dust mass: (hot) %e  (mixed) %e  (cool) %e  (%f micron)\n", arr_reduced[1], arr_reduced[2],
-             arr_reduced[3], H.grain_radius[i] * 0.1);
+    chprintf("Dust mass: (hot) %e  (mixed) %e  (cool) %e  (%f micron)\n", arr_reduced.at(1), arr_reduced.at(2),
+             arr_reduced.at(3), H.grain_radius[i] * 0.1);
   }
   chprintf("Cloud mass: %e\n\n", mass_cloud_tot);
 

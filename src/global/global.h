@@ -84,6 +84,7 @@ typedef double Real;
 
 #ifdef DUST
   #define N_GRAIN_SIZES 4
+  #define N_BINS        10
 #endif  // DUST
 
 // Inital Chemistry fractions
