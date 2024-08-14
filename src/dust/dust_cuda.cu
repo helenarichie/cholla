@@ -29,32 +29,35 @@
   #include "../utils/reduction_utilities.h"
 
 void Dust_Update(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields, Real dx, Real dy, Real dz,
-                 Real dt, Real gamma, int dust_enum, Real grain_radius, Real *mass_hot, Real *mass_mixed,
-                 Real *mass_cool)
+                 Real zbound, int z_off, Real dt, Real gamma, int dust_enum, Real grain_radius,
+                 std::vector<Real> &mass_hot, std::vector<Real> &mass_mixed, std::vector<Real> &mass_cool)
 {
   int n_cells = nx * ny * nz;
   int ngrid   = (n_cells + TPB - 1) / TPB;
   dim3 dim1dGrid(ngrid, 1, 1);
   dim3 dim1dBlock(TPB, 1, 1);
 
-  cuda_utilities::DeviceVector<Real> dev_mass_hot(1, true);
-  cuda_utilities::DeviceVector<Real> dev_mass_mixed(1, true);
-  cuda_utilities::DeviceVector<Real> dev_mass_cool(1, true);
+  cuda_utilities::DeviceVector<Real> dev_mass_hot(N_BINS, true);
+  cuda_utilities::DeviceVector<Real> dev_mass_mixed(N_BINS, true);
+  cuda_utilities::DeviceVector<Real> dev_mass_cool(N_BINS, true);
 
   hipLaunchKernelGGL(Dust_Kernel, dim1dGrid, dim1dBlock, 0, 0, dev_conserved, nx, ny, nz, n_ghost, n_fields, dx, dy, dz,
-                     dt, gamma, dust_enum, grain_radius, dev_mass_hot.data(), dev_mass_mixed.data(),
+                     zbound, z_off, dt, gamma, dust_enum, grain_radius, dev_mass_hot.data(), dev_mass_mixed.data(),
                      dev_mass_cool.data());
   GPU_Error_Check();
   cudaDeviceSynchronize();
 
-  *mass_hot   = dev_mass_hot[0];
-  *mass_mixed = dev_mass_mixed[0];
-  *mass_cool  = dev_mass_cool[0];
+  // write result of GPU grid-wide reduction back to host
+  for (int i = 0; i < N_BINS; i++) {
+    mass_hot.at(i)   = dev_mass_hot.at(i);
+    mass_mixed.at(i) = dev_mass_mixed.at(i);
+    mass_cool.at(i)  = dev_mass_cool.at(i);
+  }
 }
 
 __global__ void Dust_Kernel(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields, Real dx, Real dy,
-                            Real dz, Real dt, Real gamma, int dust_enum, Real grain_radius, Real *mass_hot,
-                            Real *mass_mixed, Real *mass_cool)
+                            Real dz, Real zbound, int z_off, Real dt, Real gamma, int dust_enum, Real grain_radius,
+                            Real *mass_hot, Real *mass_mixed, Real *mass_cool)
 {
   // get grid indices
   int n_cells = nx * ny * nz;
@@ -67,13 +70,15 @@ __global__ void Dust_Kernel(Real *dev_conserved, int nx, int ny, int nz, int n_g
   int id_y    = (id - id_z * nx * ny) / nx;
   int id_x    = id - id_z * nx * ny - id_y * nx;
 
+  Real z_pos = (z_off + id_z - n_ghost + 0.5) * dz + zbound;
+
   // define physics variables
-  Real density_gas, density_dust;  // fluid mass densities
-  Real number_density;             // gas number density
-  Real mu              = 0.6;      // mean molecular weight
-  Real sputtered_hot   = 0;
-  Real sputtered_mixed = 0;  //
-  Real sputtered_cool  = 0;  // hot, mixed, and cool-phase sputtered dust masses
+  Real density_gas, density_dust;      // fluid mass densities
+  Real number_density;                 // gas number density
+  Real mu                      = 0.6;  // mean molecular weight
+  Real sputtered_hot[N_BINS]   = {0};
+  Real sputtered_mixed[N_BINS] = {0};  //
+  Real sputtered_cool[N_BINS]  = {0};  // hot, mixed, and cool-phase sputtered dust masses
 
   // define integration variables
   Real dd_dt;          // instantaneous rate of change in dust density
@@ -115,7 +120,7 @@ __global__ void Dust_Kernel(Real *dev_conserved, int nx, int ny, int nz, int n_g
                   TIME_UNIT;  // sputtering timescale, kyr (sim units)
 
     dd_dt = Calc_dd_dt(density_dust, tau_sp);  // rate of change in dust density at current timestep
-    dd    = dd_dt * dt;                        // change in dust density at current timestep
+    dd    = dd_dt * dt;                        // change in dust density at current timestepz_off
 
     // ensure that dust density is not changing too rapidly
     while (dd / density_dust > dd_max) {
@@ -129,21 +134,116 @@ __global__ void Dust_Kernel(Real *dev_conserved, int nx, int ny, int nz, int n_g
     // update dust density
     density_dust += dd;
 
-    if (temperature >= 5e5) {
-      sputtered_hot += abs(dd * dx * dy * dz);
-    } else if ((temperature < 5e5) && (temperature >= 2e4)) {
-      sputtered_mixed += abs(dd * dx * dy * dz);
-    } else if (temperature < 2e4) {
-      sputtered_cool += abs(dd * dx * dy * dz);
+    // complete phase-wise reduction of sputtered dust mass, binned in vertical chunks 10 x 10 x 1 kpc^3 chunks
+
+    // printf("z_pos: %f \n", z_pos);
+    // else if (((z_pos >= 8) && (z_pos < 9)) || (((z_pos >= 11) && (z_pos < 12))))
+
+    // if z is in the disk region (the central 2 kpc of the volume)
+    if (abs(z_pos) <= 1) {
+      // if sputtered in hot phase
+      if (temperature >= 5e5) {
+        sputtered_hot[0] += abs(dd * dx * dy * dz);
+        // if sputtered in mixed phase
+      } else if ((temperature < 5e5) && (temperature >= 2e4)) {
+        sputtered_mixed[0] += abs(dd * dx * dy * dz);
+        // if sputtered in cool phase
+      } else if (temperature < 2e4) {
+        sputtered_cool[0] += abs(dd * dx * dy * dz);
+      }
+      // if z is 1-2 kpc above/below the disk
+    } else if ((abs(z_pos) > 1) && (abs(z_pos) <= 2)) {
+      if (temperature >= 5e5) {
+        sputtered_hot[1] += abs(dd * dx * dy * dz);
+      } else if ((temperature < 5e5) && (temperature >= 2e4)) {
+        sputtered_mixed[1] += abs(dd * dx * dy * dz);
+      } else if (temperature < 2e4) {
+        sputtered_cool[1] += abs(dd * dx * dy * dz);
+      }
+      // if z is 2-3 kpc above/below the disk
+    } else if ((abs(z_pos) > 2) && (abs(z_pos) <= 3)) {
+      if (temperature >= 5e5) {
+        sputtered_hot[2] += abs(dd * dx * dy * dz);
+      } else if ((temperature < 5e5) && (temperature >= 2e4)) {
+        sputtered_mixed[2] += abs(dd * dx * dy * dz);
+      } else if (temperature < 2e4) {
+        sputtered_cool[2] += abs(dd * dx * dy * dz);
+      }
+      // if z is 3-4 kpc above/below the disk
+    } else if ((abs(z_pos) > 3) && (abs(z_pos) <= 4)) {
+      if (temperature >= 5e5) {
+        sputtered_hot[3] += abs(dd * dx * dy * dz);
+      } else if ((temperature < 5e5) && (temperature >= 2e4)) {
+        sputtered_mixed[3] += abs(dd * dx * dy * dz);
+      } else if (temperature < 2e4) {
+        sputtered_cool[3] += abs(dd * dx * dy * dz);
+      }
+      // if z is 4-5 kpc above/below the disk
+    } else if ((abs(z_pos) > 4) && (abs(z_pos) <= 5)) {
+      if (temperature >= 5e5) {
+        sputtered_hot[4] += abs(dd * dx * dy * dz);
+      } else if ((temperature < 5e5) && (temperature >= 2e4)) {
+        sputtered_mixed[4] += abs(dd * dx * dy * dz);
+      } else if (temperature < 2e4) {
+        sputtered_cool[4] += abs(dd * dx * dy * dz);
+      }
+      // if z is 5-6 kpc above/below the disk
+    } else if ((abs(z_pos) > 5) && (abs(z_pos) <= 6)) {
+      if (temperature >= 5e5) {
+        sputtered_hot[5] += abs(dd * dx * dy * dz);
+      } else if ((temperature < 5e5) && (temperature >= 2e4)) {
+        sputtered_mixed[5] += abs(dd * dx * dy * dz);
+      } else if (temperature < 2e4) {
+        sputtered_cool[5] += abs(dd * dx * dy * dz);
+      }
+      // if 6-7 kpc above/below the disk
+    } else if ((abs(z_pos) > 6) && (abs(z_pos) <= 7)) {
+      if (temperature >= 5e5) {
+        sputtered_hot[6] += abs(dd * dx * dy * dz);
+      } else if ((temperature < 5e5) && (temperature >= 2e4)) {
+        sputtered_mixed[6] += abs(dd * dx * dy * dz);
+      } else if (temperature < 2e4) {
+        sputtered_cool[6] += abs(dd * dx * dy * dz);
+      }
+      // if 7-8 kpc above/below the disk
+    } else if ((abs(z_pos) > 7) && (abs(z_pos) <= 8)) {
+      if (temperature >= 5e5) {
+        sputtered_hot[7] += abs(dd * dx * dy * dz);
+      } else if ((temperature < 5e5) && (temperature >= 2e4)) {
+        sputtered_mixed[7] += abs(dd * dx * dy * dz);
+      } else if (temperature < 2e4) {
+        sputtered_cool[7] += abs(dd * dx * dy * dz);
+      }
+      // if z is 8-9 kpc above/below the disk
+    } else if ((abs(z_pos) > 8) && (abs(z_pos) <= 9)) {
+      if (temperature >= 5e5) {
+        sputtered_hot[8] += abs(dd * dx * dy * dz);
+      } else if ((temperature < 5e5) && (temperature >= 2e4)) {
+        sputtered_mixed[8] += abs(dd * dx * dy * dz);
+      } else if (temperature < 2e4) {
+        sputtered_cool[8] += abs(dd * dx * dy * dz);
+      }
+      // if z is 9-10 kpc above/below the disk
+    } else if ((abs(z_pos) > 9) && (abs(z_pos) <= 10)) {
+      if (temperature >= 5e5) {
+        sputtered_hot[9] += abs(dd * dx * dy * dz);
+      } else if ((temperature < 5e5) && (temperature >= 2e4)) {
+        sputtered_mixed[9] += abs(dd * dx * dy * dz);
+      } else if (temperature < 2e4) {
+        sputtered_cool[9] += abs(dd * dx * dy * dz);
+      }
     }
 
     dev_conserved[id + n_cells * dust_enum] = density_dust;
   }
   __syncthreads();
 
-  reduction_utilities::Grid_Reduce_Add(sputtered_hot, mass_hot);
-  reduction_utilities::Grid_Reduce_Add(sputtered_mixed, mass_mixed);
-  reduction_utilities::Grid_Reduce_Add(sputtered_cool, mass_cool);
+  // perform GPU grid-wide reduction and store result in mass_hot/mass_mixed/mass_cool
+  for (int i = 0; i < N_BINS; i++) {
+    reduction_utilities::Grid_Reduce_Add(sputtered_hot[i], &mass_hot[i]);
+    reduction_utilities::Grid_Reduce_Add(sputtered_mixed[i], &mass_mixed[i]);
+    reduction_utilities::Grid_Reduce_Add(sputtered_cool[i], &mass_cool[i]);
+  }
 }
 
 // McKinnon et al. (2017) sputtering timescale
