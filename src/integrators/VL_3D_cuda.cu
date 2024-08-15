@@ -174,12 +174,15 @@ void VL_Algorithm_3D_CUDA(Real *d_conserved, Real *d_grav_potential, int nx, int
   hipLaunchKernelGGL(Calculate_HLLC_Fluxes_CUDA, hllc_launch_params.get_numBlocks(),
                      hllc_launch_params.get_threadsPerBlock(), 0, 0, Q_Lx, Q_Rx, F_x, nx, ny, nz, n_ghost, gama, 0,
                      n_fields);
+  GPU_Error_Check();
   hipLaunchKernelGGL(Calculate_HLLC_Fluxes_CUDA, hllc_launch_params.get_numBlocks(),
                      hllc_launch_params.get_threadsPerBlock(), 0, 0, Q_Ly, Q_Ry, F_y, nx, ny, nz, n_ghost, gama, 1,
                      n_fields);
+  GPU_Error_Check();
   hipLaunchKernelGGL(Calculate_HLLC_Fluxes_CUDA, hllc_launch_params.get_numBlocks(),
                      hllc_launch_params.get_threadsPerBlock(), 0, 0, Q_Lz, Q_Rz, F_z, nx, ny, nz, n_ghost, gama, 2,
-                     n_fields);
+ 		     n_fields);
+  GPU_Error_Check();
   #endif  // HLLC
   #ifdef HLL
   cuda_utilities::AutomaticLaunchParams static const hll_launch_params(Calculate_HLL_Fluxes_CUDA, n_cells);

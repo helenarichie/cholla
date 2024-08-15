@@ -2,9 +2,7 @@
 
 #-- separated output flag so that it can be overriden in target-specific 
 #   for make check
-# OUTPUT    ?=  -DOUTPUT -DHDF5 -DSLICES -DPROJECTION -DROTATED_PROJECTION
-
-OUTPUT    ?=  -DOUTPUT -DHDF5 -DSLICES -DPROJECTION
+OUTPUT    ?=  -DOUTPUT -DHDF5 -DSLICES -DPROJECTION -DROTATED_PROJECTION
 
 MPI_GPU   ?=
 
@@ -31,11 +29,7 @@ DFLAGS += -DSCALAR_FLOOR
 # MW_MODEL vs m82 (default)
 # DFLAGS += -DMW_MODEL
 
-ifeq ($(findstring cosmology,$(TYPE)),cosmology)
-DFLAGS    += -DSIMPLE
-else
 DFLAGS    += -DVL
-endif
 
 # need this if using Disk_3D
 DFLAGS += -DDISK_ICS
@@ -64,5 +58,5 @@ DFLAGS += -DOUTPUT_EDGES
 #This is set in the system make.host file
 # DFLAGS    += $(MPI_GPU)  
 
-DFLAGS    += -DPARALLEL_OMP
-DFLAGS    += -DN_OMP_THREADS=$(OMP_NUM_THREADS)
+# DFLAGS    += -DPARALLEL_OMP
+# DFLAGS    += -DN_OMP_THREADS=$(OMP_NUM_THREADS)

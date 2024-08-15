@@ -4,7 +4,7 @@ import scipy.integrate as integrate
 import scipy.interpolate as interpolate
 
 min_mass = 1e4
-max_mass = 1.6e6
+max_mass = 2.5e6
 alpha = 1.9
 SF_max = 2e9
 m82 = True
