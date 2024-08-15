@@ -160,7 +160,8 @@ __device__ Real Supernova_Helper(Real *hydro_dev, Real pos_x, Real pos_y, Real p
   atomicAdd(&hydro_dev[gidx], weight * density);
   atomicAdd(&hydro_dev[gidx + 4 * n_cells], weight * energy);
   #ifdef BASIC_SCALAR
-  atomicAdd(&hydro_dev[gidx + 5 * n_cells], 5.0 * weight * density);
+  // 5x average ISM metallicity (Martin et al. 2002, De Cia et al. 2021)
+  atomicAdd(&hydro_dev[gidx + 5 * n_cells], 2.5 * weight);
   #endif
   #ifdef DE
   atomicAdd(&hydro_dev[gidx + (n_fields - 1) * n_cells], weight * energy);
