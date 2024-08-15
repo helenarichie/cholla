@@ -19,8 +19,8 @@ DFLAGS	  += -DSUPERNOVA
 DFLAGS    += -DAVERAGE_SLOW_CELLS
 DFLAGS    += -DSTATIC_GRAV
 
-# EVOLVE SCALAR (INJECTED BY SUPERNOVA)
 DFLAGS += -DSCALAR
+# EVOLVE BASIC SCALAR (INJECTED BY SUPERNOVA)
 DFLAGS += -DBASIC_SCALAR
 
 DFLAGS += -DDUST
@@ -31,11 +31,7 @@ DFLAGS += -DSCALAR_FLOOR
 # MW_MODEL vs m82 (default)
 # DFLAGS += -DMW_MODEL
 
-ifeq ($(findstring cosmology,$(TYPE)),cosmology)
-DFLAGS    += -DSIMPLE
-else
 DFLAGS    += -DVL
-endif
 
 # need this if using Disk_3D
 DFLAGS += -DDISK_ICS
@@ -62,7 +58,7 @@ DFLAGS += -DOUTPUT_EDGES
 #and the MPI transfers are done from the GPU
 #If not specified, MPI_GPU is off by default 
 #This is set in the system make.host file
-# DFLAGS    += $(MPI_GPU)  
+# DFLAGS    += $(MPI_GPU)  # Currently not working on Summit
 
 DFLAGS    += -DPARALLEL_OMP
 DFLAGS    += -DN_OMP_THREADS=$(OMP_NUM_THREADS)
