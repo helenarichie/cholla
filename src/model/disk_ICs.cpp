@@ -65,7 +65,11 @@ Real Sigma_Disk_D3D(Real r, Real *hdp)
   // return the exponential surface density
   Real Sigma_0 = hdp[9];
   Real R_g     = hdp[10];
+  #ifdef MW_MODEL
+  Real R_c     = 9.9;
+  #else
   Real R_c     = 4.9;
+  #endif
   Real Sigma;
   Real delta = 0.1;
   Real norm  = log(1.0 / 3.0);
