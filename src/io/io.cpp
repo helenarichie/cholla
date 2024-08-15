@@ -1561,7 +1561,7 @@ void Grid3D::Write_Projection_HDF5(hid_t file_id)
   #endif
 
   Real mu     = 0.6;
-  Real pwidth = 0.1;                              // fraction of the domain to project
+  Real pwidth = 0.5;                              // fraction of the domain to project
   int cwidth  = int(pwidth * H.ydglobal / H.dy);  // number of cells in the projection
   int pstart  = (ny_global - cwidth) / 2;
   int pend    = (ny_global + cwidth) / 2;
