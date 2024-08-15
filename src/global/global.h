@@ -83,8 +83,12 @@ typedef double Real;
 #endif  // MHD
 
 #ifdef DUST
-  #define N_GRAIN_SIZES 4
-  #define N_BINS        10
+  #ifdef GRAIN_SIZE_DIST
+    #define N_GRAIN_SIZES 4
+  #else
+    #define N_GRAIN_SIZES 1
+  #endif
+  #define N_BINS 10
 #endif  // DUST
 
 // Inital Chemistry fractions
