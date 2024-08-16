@@ -15,9 +15,6 @@
     #include "../utils/hydro_utilities.h"
     #include "../utils/reduction_utilities.h"
 
-// std::vector<Real> &gas_hot, std::vector<Real> &gas_mixed, std::vector<Real> &gas_cool, std::vector<Real> &dust_hot,
-// std::vector<Real> &dust_mixed, std::vector<Real> &dust_cool
-
 void Global_Reduce_Dust(Real *dev_conserved, int nx, int ny, int nz, Real dx, Real dy, Real dz, Real zbound, int z_off,
                         int n_ghost, int n_fields, int dust_enum, Real gamma, std::vector<Real> &gas_hot,
                         std::vector<Real> &gas_mixed, std::vector<Real> &gas_cool, std::vector<Real> &dust_hot,
