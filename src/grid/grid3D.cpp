@@ -653,7 +653,7 @@ Real Grid3D::Update_Hydro_Grid()
     std::vector<Real> gas_cool(N_BINS, 0.0);
 
     Global_Reduce_Dust(C.device, H.nx, H.ny, H.nz, H.dx, H.dy, H.dz, H.zbound, z_off, H.n_ghost, H.n_fields,
-                       grid_enum::dust_density + i, gama, gas_hot, gas_cool, gas_mixed, dust_hot, dust_mixed, dust_cool,
+                       grid_enum::dust_density + i, gama, gas_hot, gas_mixed, gas_cool, dust_hot, dust_mixed, dust_cool,
                        H.density_cloud_init);
 
     #ifdef MPI_CHOLLA
