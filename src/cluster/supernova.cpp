@@ -87,6 +87,7 @@ void Supernova::Initialize(Grid3D G, struct Parameters *P)
 
   R_cl        = P->supernova_rcl;
   SFR         = 5000.0;
+  chprintf("SFR: %f (M_sun/yr)\n", SFR/1000);
   supernova_e = P->supernova_e;
 
   dx = H.dx;
