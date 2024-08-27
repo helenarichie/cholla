@@ -1,10 +1,9 @@
 #-- M82 supernova-driven galactic outflow build
 
+
 #-- separated output flag so that it can be overriden in target-specific 
 #   for make check
-# OUTPUT    ?=  -DOUTPUT -DHDF5 -DSLICES -DPROJECTION -DROTATED_PROJECTION
-
-OUTPUT    ?=  -DOUTPUT -DHDF5 -DSLICES -DPROJECTION
+OUTPUT    ?=  -DOUTPUT -DHDF5 -DSLICES -DPROJECTION -DROTATED_PROJECTION
 
 MPI_GPU   ?=
 

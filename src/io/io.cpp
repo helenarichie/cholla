@@ -1769,7 +1769,11 @@ void Grid3D::Write_Rotated_Projection_HDF5(hid_t file_id)
   Real *dataset_buffer_vxxzr;
   Real *dataset_buffer_vyxzr;
   Real *dataset_buffer_vzxzr;
-
+  #ifdef SCALAR
+    #ifdef DUST
+  Real *dataset_buffer_dust_density_xzr;
+    #endif
+  #endif
   herr_t status;
   Real dxy, dxz, Txy, Txz;
   Real d, vx, vy, vz;
@@ -1818,6 +1822,12 @@ void Grid3D::Write_Rotated_Projection_HDF5(hid_t file_id)
     dataset_buffer_vxxzr = (Real *)calloc(nx_dset * nz_dset, sizeof(Real));
     dataset_buffer_vyxzr = (Real *)calloc(nx_dset * nz_dset, sizeof(Real));
     dataset_buffer_vzxzr = (Real *)calloc(nx_dset * nz_dset, sizeof(Real));
+  #ifdef SCALAR
+    #ifdef DUST
+    dataset_buffer_dust_density_xzr = (Real *)calloc(N_GRAIN_SIZES * nx_dset * nz_dset, sizeof(Real));
+    ;
+    #endif
+  #endif
 
     // Create the data space for the datasets
     dims[0]          = nx_dset;
@@ -1890,6 +1900,15 @@ void Grid3D::Write_Rotated_Projection_HDF5(hid_t file_id)
             dataset_buffer_vxxzr[buf_id] += C.momentum_x[id] * H.dy;
             dataset_buffer_vyxzr[buf_id] += C.momentum_y[id] * H.dy;
             dataset_buffer_vzxzr[buf_id] += C.momentum_z[id] * H.dy;
+
+  #ifdef SCALAR
+    #ifdef DUST
+            for (int a_i = 0; a_i < N_GRAIN_SIZES; a_i++) {
+              dataset_buffer_dust_density_xzr[buf_id + a_i * nx_dset * nz_dset] =
+                  C.host[H.n_cells * (grid_enum::dust_density + a_i) + id];
+            }
+    #endif
+  #endif
           }
         }
       }
@@ -1902,6 +1921,22 @@ void Grid3D::Write_Rotated_Projection_HDF5(hid_t file_id)
     status = Write_HDF5_Dataset(file_id, dataspace_xzr_id, dataset_buffer_vyxzr, "/vy_xzr");
     status = Write_HDF5_Dataset(file_id, dataspace_xzr_id, dataset_buffer_vzxzr, "/vz_xzr");
 
+  #ifdef SCALAR
+    #ifdef DUST
+    Real *temp_buffer_xzr;
+    temp_buffer_xzr = (Real *)malloc(nx_dset * nz_dset * sizeof(Real));
+    for (int a_i = 0; a_i < N_GRAIN_SIZES; a_i++) {
+      for (int i = 0; i < nx_dset * nz_dset; i++) {
+        temp_buffer_xzr[i] = dataset_buffer_dust_density_xzr[i + a_i * nx_dset * nz_dset];
+      }
+      std::string field_name_xzr      = "/d_dust_" + std::to_string(a_i) + "_xzr";
+      char const *field_name_char_xzr = field_name_xzr.c_str();
+      status = Write_HDF5_Dataset(file_id, dataspace_xzr_id, temp_buffer_xzr, field_name_char_xzr);
+    }
+    free(temp_buffer_xzr);
+    #endif
+  #endif
+
     // Free the dataspace id
     status = H5Sclose(dataspace_xzr_id);
 
@@ -1911,6 +1946,11 @@ void Grid3D::Write_Rotated_Projection_HDF5(hid_t file_id)
     free(dataset_buffer_vxxzr);
     free(dataset_buffer_vyxzr);
     free(dataset_buffer_vzxzr);
+  #ifdef SCALAR
+    #ifdef DUST
+    free(dataset_buffer_dust_density_xzr);
+    #endif
+  #endif
 
   } else {
     chprintf("Rotated projection write only implemented for 3D data.\n");

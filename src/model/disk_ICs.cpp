@@ -65,7 +65,11 @@ Real Sigma_Disk_D3D(Real r, Real *hdp)
   // return the exponential surface density
   Real Sigma_0 = hdp[9];
   Real R_g     = hdp[10];
-  Real R_c     = 4.9;
+#ifdef MW_MODEL
+  Real R_c = 9.9;
+#else
+  Real R_c = 4.9;
+#endif
   Real Sigma;
   Real delta = 0.1;
   Real norm  = log(1.0 / 3.0);
@@ -912,7 +916,7 @@ void Grid3D::Disk_3D(Parameters p)
         C.Energy[id] = P / (gama - 1.0);
   #ifdef SCALAR
     #ifdef BASIC_SCALAR
-        C.basic_scalar[id] = 1.0 * C.density[id];
+        C.basic_scalar[id] = 0.5 * C.density[id];  // average ISM metallicity (De Cia et al. 2021)
     #endif
     #ifdef DUST
         for (int i = 0; i < N_GRAIN_SIZES; ++i) {
