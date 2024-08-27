@@ -916,7 +916,7 @@ void Grid3D::Disk_3D(Parameters p)
         C.Energy[id] = P / (gama - 1.0);
   #ifdef SCALAR
     #ifdef BASIC_SCALAR
-        C.basic_scalar[id] = 0.5;  // average ISM metallicity (De Cia et al. 2021)
+        C.basic_scalar[id] = 0.5 * C.density[id];  // average ISM metallicity (De Cia et al. 2021)
     #endif
     #ifdef DUST
         for (int i = 0; i < N_GRAIN_SIZES; ++i) {
