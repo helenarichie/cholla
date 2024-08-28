@@ -15,46 +15,58 @@
     #include "../utils/hydro_utilities.h"
     #include "../utils/reduction_utilities.h"
 
-void Global_Reduce_Dust(Real *dev_conserved, int nx, int ny, int nz, Real dx, Real dy, Real dz, int n_ghost,
-                        int n_fields, int dust_enum, Real gamma, Real *mass_cloud, Real *mass_dust_hot,
-                        Real *mass_dust_mixed, Real *mass_dust_cool, Real density_cloud_init)
+void Global_Reduce_Dust(Real *dev_conserved, int nx, int ny, int nz, Real dx, Real dy, Real dz, Real zbound, int z_off,
+                        int n_ghost, int n_fields, int dust_enum, Real gamma, std::vector<Real> &gas_hot,
+                        std::vector<Real> &gas_mixed, std::vector<Real> &gas_cool, std::vector<Real> &dust_hot,
+                        std::vector<Real> &dust_mixed, std::vector<Real> &dust_cool, Real density_cloud_init)
 {
   cuda_utilities::AutomaticLaunchParams static const launchParams(Global_Reduce_Dust_Kernel);
 
-  cuda_utilities::DeviceVector<Real> dev_mass_cloud(1, true);
-  cuda_utilities::DeviceVector<Real> dev_mass_dust_hot(1, true);
-  cuda_utilities::DeviceVector<Real> dev_mass_dust_mixed(1, true);
-  cuda_utilities::DeviceVector<Real> dev_mass_dust_cool(1, true);
+  cuda_utilities::DeviceVector<Real> dev_gas_hot(N_BINS, true);
+  cuda_utilities::DeviceVector<Real> dev_gas_mixed(N_BINS, true);
+  cuda_utilities::DeviceVector<Real> dev_gas_cool(N_BINS, true);
+  cuda_utilities::DeviceVector<Real> dev_dust_hot(N_BINS, true);
+  cuda_utilities::DeviceVector<Real> dev_dust_mixed(N_BINS, true);
+  cuda_utilities::DeviceVector<Real> dev_dust_cool(N_BINS, true);
 
   hipLaunchKernelGGL(Global_Reduce_Dust_Kernel, launchParams.get_numBlocks(), launchParams.get_threadsPerBlock(), 0, 0,
-                     dev_conserved, nx, ny, nz, dx, dy, dz, n_ghost, n_fields, dust_enum, gamma, dev_mass_cloud.data(),
-                     dev_mass_dust_hot.data(), dev_mass_dust_mixed.data(), dev_mass_dust_cool.data(),
-                     density_cloud_init);
+                     dev_conserved, nx, ny, nz, dx, dy, dz, zbound, z_off, n_ghost, n_fields, dust_enum, gamma,
+                     dev_gas_hot.data(), dev_gas_mixed.data(), dev_gas_cool.data(), dev_dust_hot.data(),
+                     dev_dust_mixed.data(), dev_dust_cool.data(), density_cloud_init);
+  GPU_Error_Check();
   cudaDeviceSynchronize();
 
-  *mass_cloud      = dev_mass_cloud[0];
-  *mass_dust_hot   = dev_mass_dust_hot[0];
-  *mass_dust_mixed = dev_mass_dust_mixed[0];
-  *mass_dust_cool  = dev_mass_dust_cool[0];
+  // write result of GPU grid-wide reduction back to host
+  for (int i = 0; i < N_BINS; i++) {
+    gas_hot.at(i)    = dev_gas_hot.at(i);
+    gas_mixed.at(i)  = dev_gas_mixed.at(i);
+    gas_cool.at(i)   = dev_gas_cool.at(i);
+    dust_hot.at(i)   = dev_dust_hot.at(i);
+    dust_mixed.at(i) = dev_dust_mixed.at(i);
+    dust_cool.at(i)  = dev_dust_cool.at(i);
+  }
 }
 
 __global__ void Global_Reduce_Dust_Kernel(Real *dev_conserved, int nx, int ny, int nz, Real dx, Real dy, Real dz,
-                                          int n_ghost, int n_fields, int dust_enum, Real gamma, Real *mass_cloud,
-                                          Real *mass_dust_hot, Real *mass_dust_mixed, Real *mass_dust_cool,
-                                          Real density_cloud_init)
+                                          Real zbound, int z_off, int n_ghost, int n_fields, int dust_enum, Real gamma,
+                                          Real *gas_hot, Real *gas_mixed, Real *gas_cool, Real *dust_hot,
+                                          Real *dust_mixed, Real *dust_cool, Real density_cloud_init)
 {
   int xid, yid, zid, n_cells;
   n_cells = nx * ny * nz;
 
-  Real density_gas;
-  Real mass_cloud_stride = 0.0;
-  Real density_dust;
-  Real mass_dust_hot_stride   = 0.0;
-  Real mass_dust_mixed_stride = 0.0;
-  Real mass_dust_cool_stride  = 0.0;
+  Real density_gas, density_dust;
+  Real gas_hot_stride[N_BINS]    = {0.0};
+  Real gas_mixed_stride[N_BINS]  = {0.0};
+  Real gas_cool_stride[N_BINS]   = {0.0};
+  Real dust_hot_stride[N_BINS]   = {0.0};
+  Real dust_mixed_stride[N_BINS] = {0.0};
+  Real dust_cool_stride[N_BINS]  = {0.0};
 
   for (size_t id = threadIdx.x + blockIdx.x * blockDim.x; id < n_cells; id += blockDim.x * gridDim.x) {
     cuda_utilities::compute3DIndices(id, nx, ny, xid, yid, zid);
+
+    Real z_pos = (z_off + zid - n_ghost + 0.5) * dz + zbound;
     // grid cells
     if (xid > n_ghost - 1 && xid < nx - n_ghost && yid > n_ghost - 1 && yid < ny - n_ghost && zid > n_ghost - 1 &&
         zid < nz - n_ghost) {
@@ -86,26 +98,143 @@ __global__ void Global_Reduce_Dust_Kernel(Real *dev_conserved, int nx, int ny, i
       #endif  // MHD
     #endif    // DE
 
-      if (temperature >= 5e5) {
-        mass_dust_hot_stride += density_dust * dx * dy * dz;
-      } else if ((temperature < 5e5) && (temperature >= 2e4)) {
-        mass_dust_mixed_stride += density_dust * dx * dy * dz;
-      } else if (temperature < 2e4) {
-        mass_dust_cool_stride += density_dust * dx * dy * dz;
-      }
-
-      if ((density_gas * DENSITY_UNIT) >= (density_cloud_init / 3)) {
-        mass_cloud_stride += density_gas * dx * dy * dz;
+      if (abs(z_pos) <= 1) {
+        // if sputtered in hot phase
+        if (temperature >= 5e5) {
+          dust_hot_stride[0] += abs(density_dust * dx * dy * dz);
+          gas_hot_stride[0] += abs(density_gas * dx * dy * dz);
+          // if sputtered in mixed phase
+        } else if ((temperature < 5e5) && (temperature >= 2e4)) {
+          dust_mixed_stride[0] += abs(density_dust * dx * dy * dz);
+          gas_mixed_stride[0] += abs(density_gas * dx * dy * dz);
+          // if sputtered in cool phase
+        } else if (temperature < 2e4) {
+          dust_cool_stride[0] += abs(density_dust * dx * dy * dz);
+          gas_cool_stride[0] += abs(density_gas * dx * dy * dz);
+        }
+        // if z is 1-2 kpc above/below the disk
+      } else if ((abs(z_pos) > 1) && (abs(z_pos) <= 2)) {
+        if (temperature >= 5e5) {
+          dust_hot_stride[1] += abs(density_dust * dx * dy * dz);
+          gas_hot_stride[1] += abs(density_gas * dx * dy * dz);
+        } else if ((temperature < 5e5) && (temperature >= 2e4)) {
+          dust_mixed_stride[1] += abs(density_dust * dx * dy * dz);
+          gas_mixed_stride[1] += abs(density_gas * dx * dy * dz);
+        } else if (temperature < 2e4) {
+          dust_cool_stride[1] += abs(density_dust * dx * dy * dz);
+          gas_cool_stride[1] += abs(density_gas * dx * dy * dz);
+        }
+        // if z is 2-3 kpc above/below the disk
+      } else if ((abs(z_pos) > 2) && (abs(z_pos) <= 3)) {
+        if (temperature >= 5e5) {
+          dust_hot_stride[2] += abs(density_dust * dx * dy * dz);
+          gas_hot_stride[2] += abs(density_gas * dx * dy * dz);
+        } else if ((temperature < 5e5) && (temperature >= 2e4)) {
+          dust_mixed_stride[2] += abs(density_dust * dx * dy * dz);
+          gas_mixed_stride[2] += abs(density_gas * dx * dy * dz);
+        } else if (temperature < 2e4) {
+          dust_cool_stride[2] += abs(density_dust * dx * dy * dz);
+          gas_cool_stride[2] += abs(density_gas * dx * dy * dz);
+        }
+        // if z is 3-4 kpc above/below the disk
+      } else if ((abs(z_pos) > 3) && (abs(z_pos) <= 4)) {
+        if (temperature >= 5e5) {
+          dust_hot_stride[3] += abs(density_dust * dx * dy * dz);
+          gas_hot_stride[3] += abs(density_gas * dx * dy * dz);
+        } else if ((temperature < 5e5) && (temperature >= 2e4)) {
+          dust_mixed_stride[3] += abs(density_dust * dx * dy * dz);
+          gas_mixed_stride[3] += abs(density_gas * dx * dy * dz);
+        } else if (temperature < 2e4) {
+          dust_cool_stride[3] += abs(density_dust * dx * dy * dz);
+          gas_cool_stride[3] += abs(density_gas * dx * dy * dz);
+        }
+        // if z is 4-5 kpc above/below the disk
+      } else if ((abs(z_pos) > 4) && (abs(z_pos) <= 5)) {
+        if (temperature >= 5e5) {
+          dust_hot_stride[4] += abs(density_dust * dx * dy * dz);
+          gas_hot_stride[4] += abs(density_gas * dx * dy * dz);
+        } else if ((temperature < 5e5) && (temperature >= 2e4)) {
+          dust_mixed_stride[4] += abs(density_dust * dx * dy * dz);
+          gas_mixed_stride[4] += abs(density_gas * dx * dy * dz);
+        } else if (temperature < 2e4) {
+          dust_cool_stride[4] += abs(density_dust * dx * dy * dz);
+          gas_cool_stride[4] += abs(density_gas * dx * dy * dz);
+        }
+        // if z is 5-6 kpc above/below the disk
+      } else if ((abs(z_pos) > 5) && (abs(z_pos) <= 6)) {
+        if (temperature >= 5e5) {
+          dust_hot_stride[5] += abs(density_dust * dx * dy * dz);
+          gas_hot_stride[5] += abs(density_gas * dx * dy * dz);
+        } else if ((temperature < 5e5) && (temperature >= 2e4)) {
+          dust_mixed_stride[5] += abs(density_dust * dx * dy * dz);
+          gas_mixed_stride[5] += abs(density_gas * dx * dy * dz);
+        } else if (temperature < 2e4) {
+          dust_cool_stride[5] += abs(density_dust * dx * dy * dz);
+          gas_cool_stride[5] += abs(density_gas * dx * dy * dz);
+        }
+        // if 6-7 kpc above/below the disk
+      } else if ((abs(z_pos) > 6) && (abs(z_pos) <= 7)) {
+        if (temperature >= 5e5) {
+          dust_hot_stride[6] += abs(density_dust * dx * dy * dz);
+          gas_hot_stride[6] += abs(density_gas * dx * dy * dz);
+        } else if ((temperature < 5e5) && (temperature >= 2e4)) {
+          dust_mixed_stride[6] += abs(density_dust * dx * dy * dz);
+          gas_mixed_stride[6] += abs(density_gas * dx * dy * dz);
+        } else if (temperature < 2e4) {
+          dust_cool_stride[6] += abs(density_dust * dx * dy * dz);
+          gas_cool_stride[6] += abs(density_gas * dx * dy * dz);
+        }
+        // if 7-8 kpc above/below the disk
+      } else if ((abs(z_pos) > 7) && (abs(z_pos) <= 8)) {
+        if (temperature >= 5e5) {
+          dust_hot_stride[7] += abs(density_dust * dx * dy * dz);
+          gas_hot_stride[7] += abs(density_gas * dx * dy * dz);
+        } else if ((temperature < 5e5) && (temperature >= 2e4)) {
+          dust_mixed_stride[7] += abs(density_dust * dx * dy * dz);
+          gas_mixed_stride[7] += abs(density_gas * dx * dy * dz);
+        } else if (temperature < 2e4) {
+          dust_cool_stride[7] += abs(density_dust * dx * dy * dz);
+          gas_cool_stride[7] += abs(density_gas * dx * dy * dz);
+        }
+        // if z is 8-9 kpc above/below the disk
+      } else if ((abs(z_pos) > 8) && (abs(z_pos) <= 9)) {
+        if (temperature >= 5e5) {
+          dust_hot_stride[8] += abs(density_dust * dx * dy * dz);
+          gas_hot_stride[8] += abs(density_gas * dx * dy * dz);
+        } else if ((temperature < 5e5) && (temperature >= 2e4)) {
+          dust_mixed_stride[8] += abs(density_dust * dx * dy * dz);
+          gas_mixed_stride[8] += abs(density_gas * dx * dy * dz);
+        } else if (temperature < 2e4) {
+          dust_cool_stride[8] += abs(density_dust * dx * dy * dz);
+          gas_cool_stride[8] += abs(density_gas * dx * dy * dz);
+        }
+        // if z is 9-10 kpc above/below the disk
+      } else if ((abs(z_pos) > 9) && (abs(z_pos) <= 10)) {
+        if (temperature >= 5e5) {
+          dust_hot_stride[9] += abs(density_dust * dx * dy * dz);
+          gas_hot_stride[9] += abs(density_gas * dx * dy * dz);
+        } else if ((temperature < 5e5) && (temperature >= 2e4)) {
+          dust_mixed_stride[9] += abs(density_dust * dx * dy * dz);
+          gas_mixed_stride[9] += abs(density_gas * dx * dy * dz);
+        } else if (temperature < 2e4) {
+          dust_cool_stride[9] += abs(density_dust * dx * dy * dz);
+          gas_cool_stride[9] += abs(density_gas * dx * dy * dz);
+        }
       }
     }
   }
 
   __syncthreads();
 
-  reduction_utilities::Grid_Reduce_Add(mass_cloud_stride, mass_cloud);
-  reduction_utilities::Grid_Reduce_Add(mass_dust_hot_stride, mass_dust_hot);
-  reduction_utilities::Grid_Reduce_Add(mass_dust_mixed_stride, mass_dust_mixed);
-  reduction_utilities::Grid_Reduce_Add(mass_dust_cool_stride, mass_dust_cool);
+  // perform GPU grid-wide reduction and store result in mass_hot/mass_mixed/mass_cool
+  for (int i = 0; i < N_BINS; i++) {
+    reduction_utilities::Grid_Reduce_Add(gas_hot_stride[i], &gas_hot[i]);
+    reduction_utilities::Grid_Reduce_Add(gas_mixed_stride[i], &gas_mixed[i]);
+    reduction_utilities::Grid_Reduce_Add(gas_cool_stride[i], &gas_cool[i]);
+    reduction_utilities::Grid_Reduce_Add(dust_hot_stride[i], &dust_hot[i]);
+    reduction_utilities::Grid_Reduce_Add(dust_mixed_stride[i], &dust_mixed[i]);
+    reduction_utilities::Grid_Reduce_Add(dust_cool_stride[i], &dust_cool[i]);
+  }
 }
 
   #endif  // GLOBAL_REDUCE_DUST

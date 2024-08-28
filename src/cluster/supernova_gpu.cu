@@ -56,7 +56,7 @@ __device__ Real Calc_Timestep(Real *hydro_dev, int gidx, int n_cells, Real gamma
 
 void Supernova::Initialize_GPU(void)
 {
-  #include "cluster_list.data"
+  #include "cluster_list_m82.data"
   // Defines cluster_data in local scope so it is deleted
   n_cluster = sizeof(cluster_data) / sizeof(cluster_data[0]) / 5;
   GPU_Error_Check(cudaMalloc(&d_cluster_array, 5 * n_cluster * sizeof(Real)));
@@ -161,7 +161,7 @@ __device__ Real Supernova_Helper(Real *hydro_dev, Real pos_x, Real pos_y, Real p
   atomicAdd(&hydro_dev[gidx + 4 * n_cells], weight * energy);
   #ifdef BASIC_SCALAR
   // 5x average ISM metallicity (Martin et al. 2002, De Cia et al. 2021)
-  atomicAdd(&hydro_dev[gidx + 5 * n_cells], 2.5 * weight);
+  atomicAdd(&hydro_dev[gidx + 5 * n_cells], 2.5 * density * weight);
   #endif
   #ifdef DE
   atomicAdd(&hydro_dev[gidx + (n_fields - 1) * n_cells], weight * energy);

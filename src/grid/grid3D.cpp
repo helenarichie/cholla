@@ -574,15 +574,15 @@ Real Grid3D::Update_Hydro_Grid()
   }
 
   for (int j = 0; j < N_BINS; j++) {
-    chprintf("%d  Hot sputtered mass:  ", j);
+    chprintf("%d  Sputtered mass:  (hot) ", j);
     for (int i = 0; i < N_GRAIN_SIZES; i++) {
       chprintf("%e  ", masses_hot_tot.at(j + i * N_BINS));
     }
-    chprintf("  Mixed sputtered mass: ");
+    chprintf(" (mixed) ");
     for (int i = 0; i < N_GRAIN_SIZES; i++) {
       chprintf("%e  ", masses_mixed_tot.at(j + i * N_BINS));
     }
-    chprintf("  Cool sputtered mass:  ");
+    chprintf(" (cool) ");
     for (int i = 0; i < N_GRAIN_SIZES; i++) {
       chprintf("%e  ", masses_cool_tot.at(j + i * N_BINS));
     }
@@ -632,24 +632,70 @@ Real Grid3D::Update_Hydro_Grid()
 
 #ifdef DUST
   #ifdef GLOBAL_REDUCE_DUST
-  Real mass_cloud_tot = 0;
-  for (int i = 0; i < N_GRAIN_SIZES; i++) {
-    Real mass_cloud, mass_dust_hot, mass_dust_mixed, mass_dust_cool = 0;
+  std::vector<Real> dust_hot_tot(N_GRAIN_SIZES * N_BINS, 0.0);
+  std::vector<Real> dust_mixed_tot(N_GRAIN_SIZES * N_BINS, 0.0);
+  std::vector<Real> dust_cool_tot(N_GRAIN_SIZES * N_BINS, 0.0);
 
-    Global_Reduce_Dust(C.device, H.nx, H.ny, H.nz, H.dx, H.dy, H.dz, H.n_ghost, H.n_fields, grid_enum::dust_density + i,
-                       gama, &mass_cloud, &mass_dust_hot, &mass_dust_mixed, &mass_dust_cool, H.density_cloud_init);
+  std::vector<Real> gas_hot_tot(N_BINS, 0.0);
+  std::vector<Real> gas_mixed_tot(N_BINS, 0.0);
+  std::vector<Real> gas_cool_tot(N_BINS, 0.0);
+
+  for (int i = 0; i < N_GRAIN_SIZES; i++) {
+    std::vector<Real> dust_hot(N_BINS, 0.0);
+    std::vector<Real> dust_mixed(N_BINS, 0.0);
+    std::vector<Real> dust_cool(N_BINS, 0.0);
+    std::vector<Real> dust_hot_reduced(N_BINS, 0.0);
+    std::vector<Real> dust_mixed_reduced(N_BINS, 0.0);
+    std::vector<Real> dust_cool_reduced(N_BINS, 0.0);
+
+    std::vector<Real> gas_hot(N_BINS, 0.0);
+    std::vector<Real> gas_mixed(N_BINS, 0.0);
+    std::vector<Real> gas_cool(N_BINS, 0.0);
+
+    Global_Reduce_Dust(C.device, H.nx, H.ny, H.nz, H.dx, H.dy, H.dz, H.zbound, z_off, H.n_ghost, H.n_fields,
+                       grid_enum::dust_density + i, gama, gas_hot, gas_mixed, gas_cool, dust_hot, dust_mixed, dust_cool,
+                       H.density_cloud_init);
 
     #ifdef MPI_CHOLLA
     MPI_Barrier(world);
-    std::vector<Real> arr_unreduced = {mass_cloud, mass_dust_hot, mass_dust_mixed, mass_dust_cool};
-    std::vector<Real> arr_reduced(4, 0);
-    MPI_Allreduce(arr_unreduced.data(), arr_reduced.data(), 4, MPI_CHREAL, MPI_SUM, world);
-    mass_cloud_tot = arr_reduced.at(0);
+    MPI_Allreduce(dust_hot.data(), dust_hot_reduced.data(), N_BINS, MPI_CHREAL, MPI_SUM, world);
+    MPI_Allreduce(dust_mixed.data(), dust_mixed_reduced.data(), N_BINS, MPI_CHREAL, MPI_SUM, world);
+    MPI_Allreduce(dust_cool.data(), dust_cool_reduced.data(), N_BINS, MPI_CHREAL, MPI_SUM, world);
+
+    if (i == 0) {
+      MPI_Allreduce(gas_hot.data(), gas_hot_tot.data(), N_BINS, MPI_CHREAL, MPI_SUM, world);
+      MPI_Allreduce(gas_mixed.data(), gas_mixed_tot.data(), N_BINS, MPI_CHREAL, MPI_SUM, world);
+      MPI_Allreduce(gas_cool.data(), gas_cool_tot.data(), N_BINS, MPI_CHREAL, MPI_SUM, world);
+    }
     #endif  // MPI_CHOLLA
-    chprintf("Dust mass: (hot) %e  (mixed) %e  (cool) %e  (%f micron)\n", arr_reduced.at(1), arr_reduced.at(2),
-             arr_reduced.at(3), H.grain_radius[i] * 0.1);
+
+    for (int j = 0; j < N_BINS; j++) {
+      dust_hot_tot.at(j + i * N_BINS)   = dust_hot_reduced.at(j);
+      dust_mixed_tot.at(j + i * N_BINS) = dust_mixed_reduced.at(j);
+      dust_cool_tot.at(j + i * N_BINS)  = dust_cool_reduced.at(j);
+    }
   }
-  chprintf("Cloud mass: %e\n\n", mass_cloud_tot);
+
+  for (int j = 0; j < N_BINS; j++) {
+    chprintf("%d  Dust mass:  (hot) ", j);
+    for (int i = 0; i < N_GRAIN_SIZES; i++) {
+      chprintf("%e  ", dust_hot_tot.at(j + i * N_BINS));
+    }
+    chprintf(" (mixed) ");
+    for (int i = 0; i < N_GRAIN_SIZES; i++) {
+      chprintf("%e  ", dust_mixed_tot.at(j + i * N_BINS));
+    }
+    chprintf(" (cool) ");
+    for (int i = 0; i < N_GRAIN_SIZES; i++) {
+      chprintf("%e  ", dust_cool_tot.at(j + i * N_BINS));
+    }
+    chprintf("\n");
+  }
+  for (int j = 0; j < N_BINS; j++) {
+    chprintf("%d  Gas mass:  (hot) %e  (mixed) %e  (cool) %e\n", j, gas_hot_tot.at(j), gas_mixed_tot.at(j),
+             gas_cool_tot.at(j));
+  }
+  chprintf("\n");
 
   #endif  // GLOBAL_REDUCE_DUST
 #endif    // DUST
