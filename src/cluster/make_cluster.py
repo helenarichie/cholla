@@ -1,5 +1,7 @@
 # name = "m82"
-name = "high_z"
+# name = "high_z"
+name = "bursty_5"
+# name = "bursty_20"
 
 with open(f'{name}/cluster_list_{name}.txt','r') as ofile:
     data = ofile.read()

@@ -56,7 +56,7 @@ __device__ Real Calc_Timestep(Real *hydro_dev, int gidx, int n_cells, Real gamma
 
 void Supernova::Initialize_GPU(void)
 {
-  #include "cluster_list_m82.data"
+  #include "cluster_list_bursty_5.data"
   // Defines cluster_data in local scope so it is deleted
   n_cluster = sizeof(cluster_data) / sizeof(cluster_data[0]) / 5;
   GPU_Error_Check(cudaMalloc(&d_cluster_array, 5 * n_cluster * sizeof(Real)));
@@ -362,6 +362,7 @@ __global__ void Calc_Flag_Kernel(Real *cluster_array, Real *omega_array, bool *f
   */
 
   flag_array[tid] = true;
+  // printf("%d I'm on! %e\n", table_index, total_SF);
 
   // Use table to set arrays
   // 1e3 is KYR conversion
