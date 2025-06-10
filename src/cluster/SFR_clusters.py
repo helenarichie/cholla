@@ -9,20 +9,22 @@ high_z = False
 mw = False
 bursty_m82 = True
 bursty_high_z = False
+nuclear_burst = True  # same as bursty_m82 but with different burst periods
 
 min_mass = 1e4
 max_mass = 2.5e6
 alpha = 1.9
 if bursty_high_z or high_z:
-    SFR = 20  # M_sun / yr
+    SFR_burst = 20  # M_sun / yr
 if bursty_m82 or m82:
-    SFR = 5  # M_sun / yr
-burst_period_duration = 20e6  # length of period when galaxy will form stars at a rate of SFR, yr
-quiescent_period_duration = 30e6  # length of period when galaxy will form no new stars, yr
-sim_duration = 100e6  # total run time of simulation, yr
-SF_max = SFR * sim_duration  # M_sun, SFR * simulation run time
+    SFR_burst = 5  # M_sun / yr
+SFR_quiescent = 1
+burst_period_duration = 40e6  # length of period when galaxy will form stars at a rate of SFR, yr
+quiescent_period_duration = 20e6  # length of period when galaxy will form no new stars, yr
+sim_duration = 2 * burst_period_duration + quiescent_period_duration  # total run time of simulation, yr, equivalent to two burst periods and one quiescent period
+SF_max = SFR_quiescent * quiescent_period_duration + 2 * SFR_burst * burst_period_duration # M_sun, total mass of stars formed
 
-if m82 or bursty_m82:
+if m82 or bursty_m82 or nuclear_burst:
     Rd = 0.3 # M82
 if high_z or bursty_high_z:
     Rd = 0.8 # high_z
@@ -39,6 +41,8 @@ if bursty_high_z:
     name = "bursty_20"
 if bursty_m82:
     name = "bursty_5"
+if nuclear_burst:
+    name = "nb"
 
 # a few function definitions (now just used for plotting)
 def cluster_pdf(x):
@@ -75,6 +79,8 @@ total_SF = 0
 
 period_number = 0  # track whether it's a burst or quiescent period
 period_end = burst_period_duration  # the time that the loop's current period of star formation/quiesence ends at
+SFR = SFR_burst # set the SFR to the burst rate
+period_end_mass = SFR_burst * burst_period_duration
 
 time = [0]  # "simulation runtime", according to how much stellar mass has been formed
 
@@ -92,16 +98,16 @@ while (total_SF < SF_max):
     z = np.random.uniform(-0.01, 0.01, 1)
     z_cl = np.concatenate((z_cl, z))
 
-    if tot_SF[-1] >= (period_end * SFR):
-        print(f"Period duration: {period_end/1e6}, period_number: {period_number}, total_SF: {total_SF[0]:.2e} M_sun, number of clusters: {len(tot_SF)}")
+    if tot_SF[-1] >= (period_end_mass):
+        print(f"Period duration: {time[-1][0]/1e6:.1f} Myr, period_number: {period_number}, total_SF: {total_SF[0]:.2e} M_sun, number of clusters: {len(tot_SF)}")
         # if it's currently a burst formation period
         if (period_number == 0) or (period_number == 2):
-            total_SF += quiescent_period_duration * SFR  # shut off star formation
-            period_end += quiescent_period_duration
-            time[-1] = period_end
+            SFR = SFR_quiescent
+            period_end_mass += quiescent_period_duration * SFR
         # if it's currently a quiescent period
         if (period_number == 1) or (period_number == 3):
-            period_end += burst_period_duration
+            SFR = SFR_burst
+            period_end_mass += burst_period_duration * SFR
         period_number += 1
 
 # plot the distribution of cluster masses
@@ -119,9 +125,8 @@ plt.close()
 # %%
 print(f"Total cluster mass: {np.sum(clusters):.2e} M_sun")
 
-time = np.array(time)
 # %%
-plt.plot(time[1:]/1e6, tot_SF)
+plt.plot(np.array(time[1:])/1e6, tot_SF)
 plt.xlabel("Time [Myr]")
 plt.ylabel(r"Total SF [M$_\odot$]")
 plt.show()
@@ -136,7 +141,7 @@ N_cl = np.size(clusters)
 def f(R):
     return R * np.exp(- R / Rd)
 
-if m82 or high_z or bursty_m82 or bursty_high_z:
+if m82 or high_z or bursty_m82 or bursty_high_z or nb:
     integral = integrate.quad(f, 0, 4.5) # M82
 if mw:
     integral = integrate.quad(f, 0, 9.0) # MW
@@ -148,7 +153,7 @@ def n(R):
 
 # generate radial distribution
 # this uses the inverse cdf method to sample the distribution function
-if m82 or high_z or bursty_m82 or bursty_high_z:
+if m82 or high_z or bursty_m82 or bursty_high_z or nuclear_burst:
     R = np.linspace(0, 4.5, 1000, endpoint=False)+0.5*4.5/1000
     bin_edges = np.linspace(0,4.5,1001,endpoint=True)
 if mw:
