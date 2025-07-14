@@ -56,7 +56,7 @@ __device__ Real Calc_Timestep(Real *hydro_dev, int gidx, int n_cells, Real gamma
 
 void Supernova::Initialize_GPU(void)
 {
-  #include "cluster_list_bursty_5.data"
+  #include "cluster_list_nb.data"
   // Defines cluster_data in local scope so it is deleted
   n_cluster = sizeof(cluster_data) / sizeof(cluster_data[0]) / 5;
   GPU_Error_Check(cudaMalloc(&d_cluster_array, 5 * n_cluster * sizeof(Real)));
@@ -297,7 +297,8 @@ void Supernova::Calc_Omega(void)
 
 __global__ void Calc_Flag_Kernel(Real *cluster_array, Real *omega_array, bool *flag_array, Real *d_mdot, Real *d_edot,
                                  Real *d_mdot_array, Real *d_edot_array, int n_cluster, Real time, Real xMin, Real yMin,
-                                 Real zMin, Real xMax, Real yMax, Real zMax, Real R_cl, Real SFR)
+                                 Real zMin, Real xMax, Real yMax, Real zMax, Real R_cl, Real SFR_current,
+                                 Real SFR_burst, Real SFR_quiescent, Real burst_duration, Real quiescent_duration)
 {
   int tid = blockIdx.x * blockDim.x + threadIdx.x;
   if (tid >= n_cluster) {
@@ -305,8 +306,17 @@ __global__ void Calc_Flag_Kernel(Real *cluster_array, Real *omega_array, bool *f
   }
   // Check if it is time for this cluster to be active
   // SF_cl/20000 < t < SF_cl/20000 + 40000
-  Real total_SF     = cluster_array[5 * tid + 1];
-  Real convert_time = (((time - total_SF / SFR) * 1e3) - 1e4) * 1e-5;
+  Real total_SF = cluster_array[5 * tid + 1];
+  Real mass_inferred_time, period_mass_formed;
+  if ((time >= burst_duration) && (time < burst_duration + quiescent_duration)) {
+    period_mass_formed = total_SF - SFR_burst * burst_duration;
+    mass_inferred_time = burst_duration + period_mass_formed / SFR_current;
+  } else if (time >= burst_duration + quiescent_duration) {
+    period_mass_formed = total_SF - (SFR_burst * burst_duration + SFR_quiescent * quiescent_duration);
+    mass_inferred_time = burst_duration + quiescent_duration + period_mass_formed / SFR_current;
+  }
+
+  Real convert_time = (((time - mass_inferred_time) * 1e3) - 1e4) * 1e-5;
   int table_index   = __double2int_rd(convert_time);
   // int table_index = (int)floor(convert_time);
 
@@ -316,7 +326,7 @@ __global__ void Calc_Flag_Kernel(Real *cluster_array, Real *omega_array, bool *f
   }
   // SB99 table goes up to 9e7 yr = 9e4 kyr (code time)
   // but we'll cut off at 80 Myr
-  if (time > total_SF / SFR + 8e4) {
+  if (time > mass_inferred_time + 8e4) {
     flag_array[tid] = false;
     return;
   }
@@ -393,7 +403,7 @@ void Supernova::Calc_Flags(Real time)
   dim3 dim1dBlock(TPB, 1, 1);
   hipLaunchKernelGGL(Calc_Flag_Kernel, dim1dGrid, dim1dBlock, 0, 0, d_cluster_array, d_omega_array, d_flags_array,
                      d_mdot, d_edot, d_mdot_array, d_edot_array, n_cluster, time, xMin, yMin, zMin, xMax, yMax, zMax,
-                     R_cl, SFR);
+                     R_cl, SFR_current, SFR_burst, SFR_quiescent, burst_duration, quiescent_duration);
   GPU_Error_Check(cudaDeviceSynchronize());
   // double end_time = get_time();
   // chprintf("Supernova Calc Flags: %9.4f \n",1000*(end_time-start_time));

@@ -42,7 +42,11 @@ extern int n_ghost;
 extern int supernova_e;
 
 extern Real R_cl;
-extern Real SFR;
+extern Real SFR_current;
+extern Real SFR_burst;
+extern Real SFR_quiescent;
+extern Real burst_duration;
+extern Real quiescent_duration;
 void Initialize(Grid3D G, struct Parameters *P);
 void Initialize_GPU(void);
 void InitializeS99(void);

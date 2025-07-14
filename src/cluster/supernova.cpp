@@ -34,7 +34,11 @@ namespace Supernova
 Real *d_hydro_array;
 
 Real R_cl;
-Real SFR;
+Real SFR_current;
+Real SFR_burst;
+Real SFR_quiescent;
+Real burst_duration;
+Real quiescent_duration;
 
 Real xMin;
 Real yMin;
@@ -85,9 +89,13 @@ void Supernova::Initialize(Grid3D G, struct Parameters *P)
 
   Header H = G.H;
 
-  R_cl = P->supernova_rcl;
-  SFR  = 5000.0;
-  chprintf("SFR: %f (M_sun/yr)\n", SFR / 1000);
+  R_cl               = P->supernova_rcl;
+  SFR_burst          = 5000.0;
+  SFR_quiescent      = 500.0;
+  SFR_current        = SFR_burst;
+  burst_duration     = 30e3;
+  quiescent_duration = 20e3;
+  chprintf("Initial SFR: %f (M_sun/yr)\n", SFR_current / 1000);
   supernova_e = P->supernova_e;
 
   dx = H.dx;
@@ -161,6 +169,14 @@ Real Supernova::Update_Grid(Grid3D G, Real old_dti_local)
 
 C_cfl/old_dti;
   */
+
+  if (G.H.t == burst_duration) {
+    SFR_current = SFR_quiescent;
+    chprintf("Burst period ended at %f Myr. SFR set to %f (M_sun/yr)\n", G.H.t / 1e3, SFR_current / 1e3);
+  } else if (G.H.t == burst_duration + quiescent_duration) {
+    SFR_current = SFR_burst;
+    chprintf("Quiescent period ended at %f Myr. SFR set to %f (M_sun/yr)\n", G.H.t / 1e3, SFR_current / 1e3);
+  }
 
   // Return dti
   Real old_dt = G.H.dt;
