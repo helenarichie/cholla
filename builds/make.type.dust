@@ -19,22 +19,22 @@ DFLAGS    += -DDENSITY_FLOOR
 DFLAGS    += -DVL
 
 # Evolve additional scalars
-DFLAGS    += -DSCALAR
-DFLAGS    += -DSCALAR_FLOOR
+# DFLAGS    += -DSCALAR
+# DFLAGS    += -DSCALAR_FLOOR
 
 # Define dust macro
-DFLAGS    += -DDUST
-DFLAGS    += -DOUTFLOW_ANALYSIS
+# DFLAGS    += -DDUST
+# DFLAGS    += -DOUTFLOW_ANALYSIS
 # DFLAGS    += -DCLOUD_TRACKING
 
 # Apply the cooling in the GPU from precomputed tables
 DFLAGS    += -DCOOLING_GPU
 
 #Measure the Timing of the different stages
-#DFLAGS   += -DCPU_TIME
+# DFLAGS   += -DCPU_TIME
 
-DFLAGS    += -DSLICES
-DFLAGS    += -DPROJECTION
+# DFLAGS    += -DSLICES
+# DFLAGS    += -DPROJECTION
 
 DFLAGS    += $(OUTPUT)
 
