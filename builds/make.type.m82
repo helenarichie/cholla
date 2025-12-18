@@ -3,7 +3,7 @@
 
 #-- separated output flag so that it can be overriden in target-specific 
 #   for make check
-OUTPUT    ?=  -DOUTPUT -DHDF5 -DSLICES -DPROJECTION -DROTATED_PROJECTION
+OUTPUT    ?=  -DOUTPUT -DHDF5 -DPROJECTION
 
 MPI_GPU   ?=
 
@@ -22,10 +22,10 @@ DFLAGS += -DSCALAR
 # EVOLVE BASIC SCALAR (INJECTED BY SUPERNOVA)
 DFLAGS += -DBASIC_SCALAR
 
-DFLAGS += -DDUST
-DFLAGS += -DGLOBAL_REDUCE_DUST
-DFLAGS += -DGRAIN_SIZE_DIST
-DFLAGS += -DSCALAR_FLOOR
+# DFLAGS += -DDUST
+# DFLAGS += -DGLOBAL_REDUCE_DUST
+# DFLAGS += -DGRAIN_SIZE_DIST
+# DFLAGS += -DSCALAR_FLOOR
 
 # MW_MODEL vs m82 (default)
 # DFLAGS += -DMW_MODEL
@@ -36,7 +36,7 @@ DFLAGS    += -DVL
 DFLAGS += -DDISK_ICS
 
 # Apply a density and temperature floor
-#DFLAGS    += -DDENSITY_FLOOR
+# DFLAGS    += -DDENSITY_FLOOR
 DFLAGS    += -DTEMPERATURE_FLOOR
 
 # Solve the Gas Internal Energy usisng a Dual Energy Formalism
@@ -45,19 +45,19 @@ DFLAGS    += -DDE
 # Apply the cooling in the GPU from precomputed tables
 DFLAGS    += -DCOOLING_GPU
 
-#Measure the Timing of the different stages
-#DFLAGS += -DCPU_TIME
+# Measure the Timing of the different stages
+# DFLAGS += -DCPU_TIME
 
 DFLAGS    += $(OUTPUT)
-DFLAGS += -DOUTPUT_EDGES
+# DFLAGS += -DOUTPUT_EDGES
 
-DFLAGS += -DDISABLE_GPU_ERROR_CHECKING
+# DFLAGS += -DDISABLE_GPU_ERROR_CHECKING
 
-#Select if the Hydro Conserved data will reside in the GPU
-#and the MPI transfers are done from the GPU
-#If not specified, MPI_GPU is off by default 
-#This is set in the system make.host file
-DFLAGS    += $(MPI_GPU)  # Currently not working on Summit
+# Select if the Hydro Conserved data will reside in the GPU
+# and the MPI transfers are done from the GPU
+# If not specified, MPI_GPU is off by default 
+# This is set in the system make.host file
+# DFLAGS    += $(MPI_GPU)  # Currently not working on Summit
 
-DFLAGS    += -DPARALLEL_OMP
-DFLAGS    += -DN_OMP_THREADS=$(OMP_NUM_THREADS)
+# DFLAGS    += -DPARALLEL_OMP
+# DFLAGS    += -DN_OMP_THREADS=$(OMP_NUM_THREADS)
