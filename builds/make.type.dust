@@ -8,7 +8,7 @@ MPI_GPU   ?=
 
 DFLAGS    += -DMPI_CHOLLA
 DFLAGS    += -DPRECISION=2
-DFLAGS    += -DPLMC
+DFLAGS    += -DPPMP
 DFLAGS    += -DHLLC
 
 DFLAGS    += -DDE
