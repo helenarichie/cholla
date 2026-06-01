@@ -41,6 +41,14 @@ __inline__ __device__ Real warpReduceMax(Real val)
   }
   return val;
 }
+
+__inline__ __device__ Real Warp_Reduce_Add(Real val)
+{
+  for (int offset = warpSize / 2; offset > 0; offset /= 2) {
+    val += __shfl_down(val, offset);
+  }
+  return val;
+}
 // =====================================================================
 
 // =====================================================================
@@ -281,7 +289,65 @@ __inline__ __device__ void gridReduceMax(Real val, Real* out)
     atomicMaxBits(out, val);
   }
 }
+
+inline __device__ float Atomic_Add_Bits(float* address, float val)
+{
+#ifdef O_HIP
+  return atomicAdd(address, val);
+#else  // O_HIP
+  return atomicAdd(address, val);
+#endif
+}
 // =====================================================================
+
+// =====================================================================
+inline __device__ double Atomic_Add_Bits(double* address, double val)
+{
+#ifdef O_HIP
+  return atomicAdd(address, val);
+#else  // O_HIP
+  return atomicAdd(address, val);
+#endif
+}
+
+__inline__ __device__ Real Block_Reduce_Add(Real val)
+{
+  // Shared memory for storing the results of each warp-wise partial
+  // reduction
+  __shared__ Real shared[::maxWarpsPerBlock];
+
+  int lane   = threadIdx.x % warpSize;  // thread ID within the warp,
+  int warpId = threadIdx.x / warpSize;  // ID of the warp itself
+
+  val = Warp_Reduce_Add(val);  // Each warp performs partial reduction
+
+  if (lane == 0) {
+    shared[warpId] = val;
+  }  // Write reduced value to shared memory
+
+  __syncthreads();  // Wait for all partial reductions
+
+  // read from shared memory only if that warp existed
+  val = (threadIdx.x < blockDim.x / warpSize) ? shared[lane] : 0;
+
+  if (warpId == 0) {
+    val = Warp_Reduce_Add(val);
+  }  // Final reduce within first warp
+
+  return val;
+}
+// =====================================================================
+
+__inline__ __device__ void Grid_Reduce_Add(Real val, Real* out)
+{
+  // Reduce the entire block in parallel
+  val = Block_Reduce_Add(val);
+
+  // Write block level reduced value to the output scalar atomically
+  if (threadIdx.x == 0) {
+    Atomic_Add_Bits(out, val);
+  }
+}
 
 // =====================================================================
 /*!
@@ -302,5 +368,7 @@ __inline__ __device__ void gridReduceMax(Real val, Real* out)
  * \param[in] N The size of the `in` array
  */
 __global__ void kernelReduceMax(Real* in, Real* out, size_t N);
+
+__global__ void Kernel_Reduce_Add(Real* in, Real* out, size_t N);
 // =====================================================================
 }  // namespace reduction_utilities

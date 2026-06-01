@@ -472,8 +472,44 @@ Real Grid3D::Update_Hydro_Grid(std::function<void(Grid3D &)> &chemistry_callback
   }
 
 #ifdef DUST
+
+  std::vector<Real> masses_hot_tot(1, 0.0);
+  std::vector<Real> masses_mixed_tot(1, 0.0);
+  std::vector<Real> masses_cool_tot(1, 0.0);
+
+  std::vector<Real> mass_hot(1, 0.0);
+  std::vector<Real> mass_mixed(1, 0.0);
+  std::vector<Real> mass_cool(1, 0.0);
+
+  std::vector<Real> mass_hot_tot(1, 0.0);
+  std::vector<Real> mass_mixed_tot(1, 0.0);
+  std::vector<Real> mass_cool_tot(1, 0.0);
+
+  chprintf("grain radius: %e\n", H.grain_radius);
+
   // ==Apply dust from dust/dust_cuda.h==
-  Dust_Update(C.device, H.nx, H.ny, H.nz, H.n_ghost, H.n_fields, H.dt, gama, H.grain_radius);
+  Dust_Update(C.device, H.nx, H.ny, H.nz, H.n_ghost, H.n_fields, H.dx, H.dy, H.dz, H.dt, gama, H.grain_radius,
+              mass_hot, mass_mixed, mass_cool);
+
+  #ifdef MPI_CHOLLA
+    MPI_Barrier(world);
+    MPI_Allreduce(mass_hot.data(), mass_hot_tot.data(), 1, MPI_CHREAL, MPI_SUM, world);
+    MPI_Allreduce(mass_mixed.data(), mass_mixed_tot.data(), 1, MPI_CHREAL, MPI_SUM, world);
+    MPI_Allreduce(mass_cool.data(), mass_cool_tot.data(), 1, MPI_CHREAL, MPI_SUM, world);
+  #endif  // MPI_CHOLLA
+
+  masses_hot_tot.at(0)   = mass_hot_tot.at(0);
+  masses_mixed_tot.at(0) = mass_mixed_tot.at(0);
+  masses_cool_tot.at(0)  = mass_cool_tot.at(0);
+
+  chprintf("Hot sputtered mass:  ");
+  chprintf("%e  ", masses_hot_tot.at(0));
+  chprintf("  Mixed sputtered mass: ");
+  chprintf("%e  ", masses_mixed_tot.at(0));
+  chprintf("  Cool sputtered mass:  ");
+  chprintf("%e  ", masses_cool_tot.at(0));
+  chprintf("\n");
+
 #endif  // DUST
 
 #ifdef CHEMISTRY_GPU

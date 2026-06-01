@@ -24,21 +24,34 @@
   #include "../utils/cuda_utilities.h"
   #include "../utils/gpu.hpp"
   #include "../utils/hydro_utilities.h"
+  #include "../utils/reduction_utilities.h"
+  #include "../utils/DeviceVector.h"
 
-void Dust_Update(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields, Real dt, Real gamma,
-                 Real grain_radius)
+void Dust_Update(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields, Real dx, Real dy,
+                 Real dz, Real dt, Real gamma, Real grain_radius, std::vector<Real> &mass_hot, 
+                 std::vector<Real> &mass_mixed, std::vector<Real> &mass_cool)
 {
   int n_cells = nx * ny * nz;
   int ngrid   = (n_cells + TPB - 1) / TPB;
   dim3 dim1dGrid(ngrid, 1, 1);
   dim3 dim1dBlock(TPB, 1, 1);
-  hipLaunchKernelGGL(Dust_Kernel, dim1dGrid, dim1dBlock, 0, 0, dev_conserved, nx, ny, nz, n_ghost, n_fields, dt, gamma,
-                     grain_radius);
+
+  cuda_utilities::DeviceVector<Real> dev_mass_hot(1, true);
+  cuda_utilities::DeviceVector<Real> dev_mass_mixed(1, true);
+  cuda_utilities::DeviceVector<Real> dev_mass_cool(1, true);
+
+  hipLaunchKernelGGL(Dust_Kernel, dim1dGrid, dim1dBlock, 0, 0, dev_conserved, nx, ny, nz, n_ghost, n_fields, dx, dy, dz, dt, gamma,
+                     grain_radius, dev_mass_hot.data(), dev_mass_mixed.data(), dev_mass_cool.data());
   GPU_Error_Check();
+
+  // write result of GPU grid-wide reduction back to host
+  mass_hot.at(0)   = dev_mass_hot.at(0);
+  mass_mixed.at(0) = dev_mass_mixed.at(0);
+  mass_cool.at(0)  = dev_mass_cool.at(0);
 }
 
-__global__ void Dust_Kernel(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields, Real dt, Real gamma,
-                            Real grain_radius)
+__global__ void Dust_Kernel(Real *dev_conserved, int nx, int ny, int nz, int n_ghost, int n_fields, Real dx, Real dy,
+                            Real dz, Real dt, Real gamma, Real grain_radius, Real *mass_hot, Real *mass_mixed, Real *mass_cool)
 {
   // get grid indices
   int n_cells = nx * ny * nz;
@@ -55,6 +68,10 @@ __global__ void Dust_Kernel(Real *dev_conserved, int nx, int ny, int nz, int n_g
   Real density_gas, density_dust;  // fluid mass densities
   Real number_density;             // gas number density
   Real mu = 0.6;                   // mean molecular weight
+
+  Real sputtered_hot   = 0;
+  Real sputtered_mixed = 0;  
+  Real sputtered_cool  = 0;  // hot, mixed, and cool-phase sputtered dust masses
 
   // define integration variables
   Real dd_dt;          // instantaneous rate of change in dust density
@@ -110,8 +127,24 @@ __global__ void Dust_Kernel(Real *dev_conserved, int nx, int ny, int nz, int n_g
     // update dust density
     density_dust += dd;
 
+    if (temperature >= 5e5) {
+        // if sputtered in hot phase
+        sputtered_hot += abs(dd * dx * dy * dz);
+        // if sputtered in mixed phase
+      } else if ((temperature < 5e5) && (temperature >= 2e4)) {
+        sputtered_mixed += abs(dd * dx * dy * dz);
+        // if sputtered in cool phase
+      } else if (temperature < 2e4) {
+        sputtered_cool += abs(dd * dx * dy * dz);
+      }
+
     dev_conserved[id + n_cells * grid_enum::dust_density] = density_dust;
   }
+
+  // perform GPU grid-wide reduction and store result in mass_hot/mass_mixed/mass_cool
+  reduction_utilities::Grid_Reduce_Add(sputtered_hot, mass_hot);
+  reduction_utilities::Grid_Reduce_Add(sputtered_mixed, mass_mixed);
+  reduction_utilities::Grid_Reduce_Add(sputtered_cool, mass_cool);
 }
 
 // McKinnon et al. (2017) sputtering timescale
