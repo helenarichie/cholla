@@ -32,6 +32,9 @@ case $FQDN in
   *betty* | *dgx* | *parcc*)
     echo "betty"
     exit 0 ;;
+  *rusty*)
+    echo "rusty"
+    exit 0 ;;
   *)
     host=$(hostname)
     echo "Using default hostname, expecting make.host.$host" >&2
