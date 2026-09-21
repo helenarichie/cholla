@@ -3,7 +3,7 @@ CXX               = mpicxx
 CXXFLAGS_DEBUG    = -g -O0 -std=c++17
 CXXFLAGS_OPTIMIZE = -Ofast -std=c++17
 GPUFLAGS_OPTIMIZE = -g -O3 -std=c++17 -rdc=true
-CUDA_ARCH       = sm_100
+CUDA_ARCH       = sm_80
 OMP_NUM_THREADS   = 16
 
 #-- Library
