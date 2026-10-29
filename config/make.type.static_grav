@@ -23,5 +23,5 @@ DFLAGS    += -DSTATIC_GRAV
 
 # Select output format
 # Can also add -DSLICES and -DPROJECTION
-OUTPUT    ?=  -DOUTPUT -DHDF5
+OUTPUT    ?=  -DOUTPUT -DHDF5 -DSLICES -DPROJECTION
 DFLAGS    += $(OUTPUT)

@@ -43,6 +43,8 @@
   #include "../chemistry_gpu/chemistry_gpu.h"  // provides Print_Chemistry_kernel
 #endif
 
+#include "../feedback/inject_wind.h"
+
 /*! \fn Grid3D(void)
  *  \brief Constructor for the Grid. */
 #ifndef RT
@@ -398,7 +400,8 @@ void Grid3D::Execute_Hydro_Integrator(void)
     // pointer should be NULL). We should probably refactor to unify STATIC_GRAV and GRAVITY
 #ifdef GRAVITY
     d_Grav_potential = Grav.F.analytic_potential_d;
-#else
+// #else
+#elif !defined(STATIC_GRAV)
     CHOLLA_ERROR("this should be unreachable when GRAVITY isn't defined");
 #endif
   } else {
@@ -560,6 +563,21 @@ Real Grid3D::Update_Hydro_Grid(std::function<void(Grid3D &)> &feedback_callback,
   #ifdef GRACKLE_METALS
   Cool.fields.metal_density = &C.host[H.n_cells * grid_enum::metal_density];
   #endif
+
+  int x_off, y_off, z_off;
+
+    // set x, y, & z offsets of local CPU volume to pass to GPU
+    // so global position on the grid is known
+    x_off = y_off = z_off = 0;
+  #ifdef MPI_CHOLLA
+    x_off = nx_local_start;
+    y_off = ny_local_start;
+    z_off = nz_local_start;
+  #endif
+  if ((H.t < 30e3) || (H.t > 50e3)) {
+    Inject_Wind(C.device, H.nx, H.ny, H.nz, H.n_ghost, H.n_fields, H.dt, gama, 
+                H.dx, H.dy, H.dz, x_off, y_off, z_off, H.xbound, H.ybound, H.zbound);
+  }
 
   #ifdef CPU_TIME
   double cur_grackle_timing = Get_Time();
